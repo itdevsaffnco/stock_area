@@ -127,57 +127,78 @@ function AdminDashboard() {
         setCurrentPage(1);
     }, [filterDateStart, filterDateEnd, filterProvince, filterChannel, filterSubChannel, filterStore, filterSku, filterStatus, storeSearchTerm, productSearchTerm]);
 
+    // Data Fetching Functions
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const fetchMasterData = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const [storesRes, productsRes, stockTypesRes] = await Promise.all([
+                axios.get('http://127.0.0.1:8000/api/stores', { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get('http://127.0.0.1:8000/api/products', { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get('http://127.0.0.1:8000/api/stock-types', { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+            setStores(storesRes.data);
+            setProducts(productsRes.data);
+            setStockTypes(stockTypesRes.data);
+        } catch (error) {
+            console.error('Error fetching master data', error);
+            if (error.response && error.response.status === 401) {
+                navigate('/login');
+            }
+        }
+    };
+
+    const fetchStocks = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://127.0.0.1:8000/api/stocks', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setStocks(res.data);
+        } catch (error) {
+            console.error('Error fetching stocks', error);
+        }
+    };
+
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://127.0.0.1:8000/api/users', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setUsers(res.data);
+        } catch (error) {
+            console.error('Error fetching users', error);
+        }
+    };
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await Promise.all([
+                fetchMasterData(),
+                (activeTab === 'dashboard' || activeTab === 'edit-stock') ? fetchStocks() : Promise.resolve(),
+                (activeTab === 'add-account') ? fetchUsers() : Promise.resolve()
+            ]);
+        } catch (error) {
+            console.error('Error refreshing data', error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
     // Fetch Initial Data (Stores, Products, StockTypes)
     useEffect(() => {
-        const fetchMasterData = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const [storesRes, productsRes, stockTypesRes] = await Promise.all([
-                    axios.get('http://127.0.0.1:8000/api/stores', { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get('http://127.0.0.1:8000/api/products', { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get('http://127.0.0.1:8000/api/stock-types', { headers: { Authorization: `Bearer ${token}` } })
-                ]);
-                setStores(storesRes.data);
-                setProducts(productsRes.data);
-                setStockTypes(stockTypesRes.data);
-            } catch (error) {
-                console.error('Error fetching master data', error);
-                if (error.response && error.response.status === 401) {
-                    navigate('/login');
-                }
-            }
-        };
         fetchMasterData();
     }, [navigate]);
 
     // Fetch Stocks when needed
     useEffect(() => {
         if (activeTab === 'dashboard' || activeTab === 'edit-stock') {
-            const fetchStocks = async () => {
-                try {
-                    const token = localStorage.getItem('token');
-                    const res = await axios.get('http://127.0.0.1:8000/api/stocks', {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    setStocks(res.data);
-                } catch (error) {
-                    console.error('Error fetching stocks', error);
-                }
-            };
             fetchStocks();
         }
         if (activeTab === 'add-account') {
-            const fetchUsers = async () => {
-                try {
-                    const token = localStorage.getItem('token');
-                    const res = await axios.get('http://127.0.0.1:8000/api/users', {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    setUsers(res.data);
-                } catch (error) {
-                    console.error('Error fetching users', error);
-                }
-            };
             fetchUsers();
         }
     }, [activeTab, addAccountForm.isLoading]);
@@ -856,7 +877,15 @@ function AdminDashboard() {
                                 />
                             </div>
                             <div className="flex justify-end mt-2 space-x-2">
-                                <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition-colors">Refresh</button>
+                                <button onClick={handleRefresh} disabled={isRefreshing} className={`bg-gray-100 text-gray-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition-colors flex items-center ${isRefreshing ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    {isRefreshing ? (
+                                        <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                    ) : null}
+                                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                                </button>
                                 <button onClick={() => { setFilterDateStart(''); setFilterDateEnd(''); setFilterProvince(''); setFilterStore(''); setFilterSku(''); setFilterStatus(''); setSortConfig({ key: 'created_at', direction: 'desc' }); }} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-red-100 transition-colors">Clear Filters</button>
                                 <button onClick={handleDownloadData} className="bg-[#1B4D3E] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#143d30] transition-colors flex items-center">
                                     <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
