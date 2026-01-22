@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import SearchableDropdown from '../components/SearchableDropdown';
 
 function AdminDashboard() {
     const navigate = useNavigate();
@@ -26,6 +27,7 @@ function AdminDashboard() {
     const [filterStore, setFilterStore] = useState('');
     const [filterSku, setFilterSku] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
     // Editing State (Modal)
     const [editingStock, setEditingStock] = useState(null);
@@ -115,6 +117,15 @@ function AdminDashboard() {
         isLoading: false,
         message: ''
     });
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterDateStart, filterDateEnd, filterProvince, filterChannel, filterSubChannel, filterStore, filterSku, filterStatus, storeSearchTerm, productSearchTerm]);
 
     // Fetch Initial Data (Stores, Products, StockTypes)
     useEffect(() => {
@@ -572,11 +583,14 @@ function AdminDashboard() {
     const uniqueSubChannels = useMemo(() => [...new Set(stores.map(s => s.sub_channel))].filter(Boolean), [stores]);
     const uniqueSkus = useMemo(() => [...new Set(stocks.map(s => s.sku_code))].filter(Boolean), [stocks]);
     const uniqueStatuses = useMemo(() => {
-        const statuses = stockTypes.length > 0 
+        // Combine statuses from actual data and predefined types
+        const dataStatuses = stocks.map(s => s.stock_type);
+        const definedStatuses = stockTypes.length > 0 
             ? stockTypes.map(st => st.name) 
-            : ['Penjualan', 'Pengiriman', 'Retur', 'Tester', 'Transfer Barang'];
-        return [...new Set(statuses)];
-    }, [stockTypes]);
+            : ['Penjualan', 'Pengiriman', 'Retur', 'Tester', 'Transfer Barang', 'Adjustment', 'Barang Masuk'];
+            
+        return [...new Set([...dataStatuses, ...definedStatuses])].filter(Boolean).sort();
+    }, [stockTypes, stocks]);
 
     const filteredStocks = useMemo(() => {
         return stocks.filter(stock => {
@@ -594,39 +608,82 @@ function AdminDashboard() {
             if (filterSku && stock.sku_code !== filterSku) return false;
             if (filterStatus && stock.stock_type !== filterStatus) return false;
             return true;
+        }).sort((a, b) => {
+            if (sortConfig.key === 'real_stock') {
+                return sortConfig.direction === 'asc' ? a.real_stock - b.real_stock : b.real_stock - a.real_stock;
+            }
+            if (sortConfig.key === 'recent_stock') {
+                return sortConfig.direction === 'asc' ? a.recent_stock - b.recent_stock : b.recent_stock - a.recent_stock;
+            }
+            if (sortConfig.key === 'created_at') {
+                const dateA = new Date(a.created_at);
+                const dateB = new Date(b.created_at);
+                return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+            }
+            return 0;
         });
-    }, [stocks, filterDateStart, filterDateEnd, filterProvince, filterChannel, filterSubChannel, filterStore, filterSku, filterStatus]);
+    }, [stocks, filterDateStart, filterDateEnd, filterProvince, filterChannel, filterSubChannel, filterStore, filterSku, filterStatus, sortConfig]);
+
+    const requestSort = (key) => {
+        let direction = 'desc';
+        if (sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIcon = (key) => {
+        if (sortConfig.key !== key) return '↕';
+        return sortConfig.direction === 'asc' ? '↑' : '↓';
+    };
 
     // --- Render Components ---
 
-    const renderStockTable = (withActions = false) => (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+    const renderStockTable = (withActions = false) => {
+        // Pagination Logic
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        const currentItems = filteredStocks.slice(indexOfFirstItem, indexOfLastItem);
+        const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
+
+        const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+        return (
+        <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col">
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('created_at')}>
+                                Date {getSortIcon('created_at')}
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Real Stock</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('recent_stock')}>
+                                Qty {getSortIcon('recent_stock')}
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('real_stock')}>
+                                Real Stock {getSortIcon('real_stock')}
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                             {withActions && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredStocks.length === 0 ? (
-                            <tr><td colSpan={withActions ? 8 : 7} className="px-6 py-4 text-center text-gray-500">No stock data found.</td></tr>
+                        {currentItems.length === 0 ? (
+                            <tr><td colSpan={withActions ? 9 : 8} className="px-6 py-4 text-center text-gray-500">No stock data found.</td></tr>
                         ) : (
-                            filteredStocks.map((stock) => (
-                                <tr key={stock.id} className="hover:bg-gray-50">
+                            currentItems.map((stock) => (
+                                <tr key={stock.id} className={`hover:bg-gray-50 ${stock.real_stock < 12 ? 'bg-red-50' : ''}`}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.store?.store_name}<div className="text-xs text-gray-500">{stock.store?.province}</div></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.sku_code}<div className="text-xs text-gray-500">{stock.product?.sku_name}</div></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${stock.stock_type === 'Penjualan' ? 'bg-blue-100 text-blue-800' : stock.stock_type === 'Pengiriman' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{stock.stock_type}</span></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{stock.recent_stock}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{stock.real_stock}</td>
+                                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${stock.real_stock < 12 ? 'text-red-600' : 'text-gray-900'}`}>{stock.real_stock}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 italic">{stock.reason || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stock.user?.name}</td>
                                     {withActions && (
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -640,8 +697,119 @@ function AdminDashboard() {
                     </tbody>
                 </table>
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm text-gray-700">
+                                Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to <span className="font-medium">{Math.min(indexOfLastItem, filteredStocks.length)}</span> of <span className="font-medium">{filteredStocks.length}</span> results
+                            </p>
+                        </div>
+                        <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                <button
+                                    onClick={() => paginate(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+                                >
+                                    <span className="sr-only">Previous</span>
+                                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                                
+                                {/* Simple Page Numbers: Show current, prev, next, first, last or just simple logic for now */}
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => {
+                                    // Show first, last, current, and surrounding 1
+                                    if (
+                                        number === 1 ||
+                                        number === totalPages ||
+                                        (number >= currentPage - 1 && number <= currentPage + 1)
+                                    ) {
+                                        return (
+                                            <button
+                                                key={number}
+                                                onClick={() => paginate(number)}
+                                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                                    currentPage === number
+                                                        ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {number}
+                                            </button>
+                                        );
+                                    } else if (
+                                        (number === currentPage - 2 && number > 1) ||
+                                        (number === currentPage + 2 && number < totalPages)
+                                    ) {
+                                        return <span key={number} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>;
+                                    }
+                                    return null;
+                                })}
+
+                                <button
+                                    onClick={() => paginate(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+                                >
+                                    <span className="sr-only">Next</span>
+                                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-    );
+        );
+    };
+
+
+    const handleDownloadData = () => {
+        const dataToDownload = filteredStocks;
+        
+        if (dataToDownload.length === 0) {
+            alert("No data to download");
+            return;
+        }
+
+        const headers = ["Date", "Store", "Province", "SKU Code", "SKU Name", "Type", "Qty", "Real Stock", "Reason", "User"];
+        
+        const csvRows = [
+            headers.join(','),
+            ...dataToDownload.map(stock => {
+                const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
+                return [
+                    escape(new Date(stock.created_at).toLocaleString()),
+                    escape(stock.store?.store_name),
+                    escape(stock.store?.province),
+                    escape(stock.sku_code),
+                    escape(stock.product?.sku_name),
+                    escape(stock.stock_type),
+                    escape(stock.recent_stock),
+                    escape(stock.real_stock),
+                    escape(stock.reason),
+                    escape(stock.user?.name)
+                ].join(',');
+            })
+        ];
+
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([csvString], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('hidden', '');
+        a.setAttribute('href', url);
+        a.setAttribute('download', `stock_data_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    };
 
     const renderContent = () => {
         switch (activeTab) {
@@ -654,14 +822,35 @@ function AdminDashboard() {
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
                                 <input type="date" className="border p-2 rounded" value={filterDateStart} onChange={e => setFilterDateStart(e.target.value)} />
                                 <input type="date" className="border p-2 rounded" value={filterDateEnd} onChange={e => setFilterDateEnd(e.target.value)} />
-                                <select className="border p-2 rounded" value={filterProvince} onChange={e => setFilterProvince(e.target.value)}><option value="">All Provinces</option>{uniqueProvinces.map(p => <option key={p} value={p}>{p}</option>)}</select>
-                                <select className="border p-2 rounded" value={filterStore} onChange={e => setFilterStore(e.target.value)}><option value="">All Stores</option>{stores.map(s => <option key={s.id} value={s.id}>{s.store_name}</option>)}</select>
-                                <select className="border p-2 rounded" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                                    <option value="">All Types</option>
-                                    {uniqueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
-                                </select>
+                                <SearchableDropdown 
+                                    options={uniqueProvinces} 
+                                    value={filterProvince} 
+                                    onChange={setFilterProvince} 
+                                    placeholder="All Provinces" 
+                                />
+                                <SearchableDropdown 
+                                    options={stores} 
+                                    value={filterStore} 
+                                    onChange={setFilterStore} 
+                                    placeholder="All Stores" 
+                                    labelKey="store_name" 
+                                    valueKey="id" 
+                                />
+                                <SearchableDropdown 
+                                    options={uniqueStatuses} 
+                                    value={filterStatus} 
+                                    onChange={setFilterStatus} 
+                                    placeholder="All Types" 
+                                />
                             </div>
-                            <div className="flex justify-end mt-2"><button onClick={() => { setFilterDateStart(''); setFilterDateEnd(''); setFilterProvince(''); setFilterStore(''); setFilterStatus(''); }} className="text-xs text-red-600 underline">Clear Filters</button></div>
+                            <div className="flex justify-end mt-2 space-x-2">
+                                <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition-colors">Refresh</button>
+                                <button onClick={() => { setFilterDateStart(''); setFilterDateEnd(''); setFilterProvince(''); setFilterStore(''); setFilterStatus(''); setSortConfig({ key: 'created_at', direction: 'desc' }); }} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-red-100 transition-colors">Clear Filters</button>
+                                <button onClick={handleDownloadData} className="bg-[#1B4D3E] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#143d30] transition-colors flex items-center">
+                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Download Data
+                                </button>
+                            </div>
                         </div>
                         {renderStockTable(false)}
                     </div>
