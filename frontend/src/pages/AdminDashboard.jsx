@@ -582,6 +582,12 @@ function AdminDashboard() {
     const uniqueChannels = useMemo(() => [...new Set(stores.map(s => s.channel))].filter(Boolean), [stores]);
     const uniqueSubChannels = useMemo(() => [...new Set(stores.map(s => s.sub_channel))].filter(Boolean), [stores]);
     const uniqueSkus = useMemo(() => [...new Set(stocks.map(s => s.sku_code))].filter(Boolean), [stocks]);
+    const skuFilterOptions = useMemo(() => {
+        return products.map(p => ({
+            value: p.sku_code,
+            label: `${p.sku_code} - ${p.sku_name}`
+        })).sort((a, b) => a.label.localeCompare(b.label));
+    }, [products]);
     const uniqueStatuses = useMemo(() => {
         // Combine statuses from actual data and predefined types
         const dataStatuses = stocks.map(s => s.stock_type);
@@ -819,7 +825,7 @@ function AdminDashboard() {
                         {/* Filters (Compact) */}
                         <div className="bg-white p-4 rounded-lg shadow mb-6">
                             <h3 className="font-bold text-gray-700 mb-2">Filters</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
                                 <input type="date" className="border p-2 rounded" value={filterDateStart} onChange={e => setFilterDateStart(e.target.value)} />
                                 <input type="date" className="border p-2 rounded" value={filterDateEnd} onChange={e => setFilterDateEnd(e.target.value)} />
                                 <SearchableDropdown 
@@ -837,6 +843,12 @@ function AdminDashboard() {
                                     valueKey="id" 
                                 />
                                 <SearchableDropdown 
+                                    options={skuFilterOptions} 
+                                    value={filterSku} 
+                                    onChange={setFilterSku} 
+                                    placeholder="All SKUs" 
+                                />
+                                <SearchableDropdown 
                                     options={uniqueStatuses} 
                                     value={filterStatus} 
                                     onChange={setFilterStatus} 
@@ -845,7 +857,7 @@ function AdminDashboard() {
                             </div>
                             <div className="flex justify-end mt-2 space-x-2">
                                 <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition-colors">Refresh</button>
-                                <button onClick={() => { setFilterDateStart(''); setFilterDateEnd(''); setFilterProvince(''); setFilterStore(''); setFilterStatus(''); setSortConfig({ key: 'created_at', direction: 'desc' }); }} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-red-100 transition-colors">Clear Filters</button>
+                                <button onClick={() => { setFilterDateStart(''); setFilterDateEnd(''); setFilterProvince(''); setFilterStore(''); setFilterSku(''); setFilterStatus(''); setSortConfig({ key: 'created_at', direction: 'desc' }); }} className="bg-red-50 text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-red-100 transition-colors">Clear Filters</button>
                                 <button onClick={handleDownloadData} className="bg-[#1B4D3E] text-white px-3 py-1 rounded text-xs font-medium hover:bg-[#143d30] transition-colors flex items-center">
                                     <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                     Download Data
