@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  ticketing-backend:
+    container_name: ticketing-backend
+    image: itsaffnco/saffnco_stock_sales_backend:latest
+    pull_policy: always
+    ports:
+      - "5000:80"
+    restart: unless-stopped
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
