@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import SearchableDropdown from '../components/SearchableDropdown';
 
 function StaffDashboard() {
     const navigate = useNavigate();
@@ -23,11 +24,13 @@ function StaffDashboard() {
     const [skuCode, setSkuCode] = useState('');
     const [skuSearchTerm, setSkuSearchTerm] = useState('');
     const [isSkuDropdownOpen, setIsSkuDropdownOpen] = useState(false);
+    const [isSkuCodeDropdownOpen, setIsSkuCodeDropdownOpen] = useState(false);
     const [currentStock, setCurrentStock] = useState(0);
     const [qty, setQty] = useState('');
     const [reason, setReason] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Fetch Master Data
     useEffect(() => {
@@ -134,7 +137,8 @@ function StaffDashboard() {
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setMessage('Stock updated successfully!');
+            setShowSuccessModal(true);
+            setMessage('');
             setQty('');
             setReason('');
             setDestProvince('');
@@ -186,60 +190,62 @@ function StaffDashboard() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Province</label>
-                                    <select 
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                        value={province}
-                                        onChange={(e) => { setProvince(e.target.value); setChannel(''); setSubChannel(''); setStoreId(''); }}
-                                        required
-                                    >
-                                        <option value="">Select Province</option>
-                                        {uniqueProvinces.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
+                                    <div className="mt-1">
+                                        <SearchableDropdown
+                                            options={uniqueProvinces}
+                                            value={province}
+                                            onChange={(val) => { setProvince(val); setChannel(''); setSubChannel(''); setStoreId(''); }}
+                                            placeholder="Select Province"
+                                            required
+                                        />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">
                                         Channel {province && `(${availableChannels.length})`}
                                     </label>
-                                    <select 
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                        value={channel}
-                                        onChange={(e) => { setChannel(e.target.value); setSubChannel(''); setStoreId(''); }}
-                                        disabled={!province}
-                                        required
-                                    >
-                                        <option value="">Select Channel</option>
-                                        {availableChannels.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
+                                    <div className="mt-1">
+                                        <SearchableDropdown
+                                            options={availableChannels}
+                                            value={channel}
+                                            onChange={(val) => { setChannel(val); setSubChannel(''); setStoreId(''); }}
+                                            placeholder="Select Channel"
+                                            disabled={!province}
+                                            required
+                                        />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">
                                         Sub Channel {channel && `(${availableSubChannels.length})`}
                                     </label>
-                                    <select 
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                        value={subChannel}
-                                        onChange={(e) => { setSubChannel(e.target.value); setStoreId(''); }}
-                                        disabled={!channel}
-                                        required
-                                    >
-                                        <option value="">Select Sub Channel</option>
-                                        {availableSubChannels.map(s => <option key={s} value={s}>{s}</option>)}
-                                    </select>
+                                    <div className="mt-1">
+                                        <SearchableDropdown
+                                            options={availableSubChannels}
+                                            value={subChannel}
+                                            onChange={(val) => { setSubChannel(val); setStoreId(''); }}
+                                            placeholder="Select Sub Channel"
+                                            disabled={!channel}
+                                            required
+                                        />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">
                                         Store {subChannel && `(${availableStores.length})`}
                                     </label>
-                                    <select 
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                        value={storeId}
-                                        onChange={(e) => setStoreId(e.target.value)}
-                                        disabled={!subChannel}
-                                        required
-                                    >
-                                        <option value="">Select Store</option>
-                                        {availableStores.map(s => <option key={s.id} value={s.id}>{s.store_name}</option>)}
-                                    </select>
+                                    <div className="mt-1">
+                                        <SearchableDropdown
+                                            options={availableStores}
+                                            value={storeId}
+                                            onChange={(val) => setStoreId(val)}
+                                            placeholder="Select Store"
+                                            labelKey="store_name"
+                                            valueKey="id"
+                                            disabled={!subChannel}
+                                            required
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -284,60 +290,62 @@ function StaffDashboard() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Province</label>
-                                            <select 
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                                value={destProvince}
-                                                onChange={(e) => { setDestProvince(e.target.value); setDestChannel(''); setDestSubChannel(''); setDestStoreId(''); }}
-                                                required
-                                            >
-                                                <option value="">Select Province</option>
-                                                {uniqueProvinces.map(p => <option key={p} value={p}>{p}</option>)}
-                                            </select>
+                                            <div className="mt-1">
+                                                <SearchableDropdown
+                                                    options={uniqueProvinces}
+                                                    value={destProvince}
+                                                    onChange={(val) => { setDestProvince(val); setDestChannel(''); setDestSubChannel(''); setDestStoreId(''); }}
+                                                    placeholder="Select Province"
+                                                    required
+                                                />
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Channel {destProvince && `(${availableDestChannels.length})`}
                                             </label>
-                                            <select 
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                                value={destChannel}
-                                                onChange={(e) => { setDestChannel(e.target.value); setDestSubChannel(''); setDestStoreId(''); }}
-                                                disabled={!destProvince}
-                                                required
-                                            >
-                                                <option value="">Select Channel</option>
-                                                {availableDestChannels.map(c => <option key={c} value={c}>{c}</option>)}
-                                            </select>
+                                            <div className="mt-1">
+                                                <SearchableDropdown
+                                                    options={availableDestChannels}
+                                                    value={destChannel}
+                                                    onChange={(val) => { setDestChannel(val); setDestSubChannel(''); setDestStoreId(''); }}
+                                                    placeholder="Select Channel"
+                                                    disabled={!destProvince}
+                                                    required
+                                                />
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Sub Channel {destChannel && `(${availableDestSubChannels.length})`}
                                             </label>
-                                            <select 
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                                value={destSubChannel}
-                                                onChange={(e) => { setDestSubChannel(e.target.value); setDestStoreId(''); }}
-                                                disabled={!destChannel}
-                                                required
-                                            >
-                                                <option value="">Select Sub Channel</option>
-                                                {availableDestSubChannels.map(s => <option key={s} value={s}>{s}</option>)}
-                                            </select>
+                                            <div className="mt-1">
+                                                <SearchableDropdown
+                                                    options={availableDestSubChannels}
+                                                    value={destSubChannel}
+                                                    onChange={(val) => { setDestSubChannel(val); setDestStoreId(''); }}
+                                                    placeholder="Select Sub Channel"
+                                                    disabled={!destChannel}
+                                                    required
+                                                />
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Store {destSubChannel && `(${availableDestStores.length})`}
                                             </label>
-                                            <select 
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 outline-none p-2 border bg-white"
-                                                value={destStoreId}
-                                                onChange={(e) => setDestStoreId(e.target.value)}
-                                                disabled={!destSubChannel}
-                                                required
-                                            >
-                                                <option value="">Select Store</option>
-                                                {availableDestStores.map(s => <option key={s.id} value={s.id}>{s.store_name}</option>)}
-                                            </select>
+                                            <div className="mt-1">
+                                                <SearchableDropdown
+                                                    options={availableDestStores}
+                                                    value={destStoreId}
+                                                    onChange={(val) => setDestStoreId(val)}
+                                                    placeholder="Select Store"
+                                                    labelKey="store_name"
+                                                    valueKey="id"
+                                                    disabled={!destSubChannel}
+                                                    required
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -357,7 +365,15 @@ function StaffDashboard() {
                                             setIsSkuDropdownOpen(true);
                                         }}
                                         onFocus={() => setIsSkuDropdownOpen(true)}
-                                        onBlur={() => setTimeout(() => setIsSkuDropdownOpen(false), 200)}
+                                        onBlur={() => setTimeout(() => {
+                                            setIsSkuDropdownOpen(false);
+                                            // Auto-fill code if exact name match found
+                                            const match = products.find(p => p.sku_name.toLowerCase() === skuSearchTerm.toLowerCase());
+                                            if (match) {
+                                                setSkuCode(match.sku_code);
+                                                setSkuSearchTerm(match.sku_name);
+                                            }
+                                        }, 200)}
                                     />
                                     {isSkuDropdownOpen && (
                                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
@@ -383,15 +399,52 @@ function StaffDashboard() {
                                         </div>
                                     )}
                                 </div>
-                                <div>
+                                <div className="relative">
                                     <label className="block text-sm font-medium text-gray-700">SKU Code</label>
                                     <input 
                                         type="text" 
-                                        className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 text-gray-500 p-2 border cursor-not-allowed"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#1B4D3E] focus:ring focus:ring-[#1B4D3E] focus:ring-opacity-50 p-2 border"
                                         value={skuCode}
-                                        disabled
-                                        placeholder="Auto-filled Code"
-                                    />
+                                        onChange={(e) => {
+                                            setSkuCode(e.target.value);
+                                            setSkuSearchTerm('');
+                                            setIsSkuCodeDropdownOpen(true);
+                                        }}
+                                        onFocus={() => setIsSkuCodeDropdownOpen(true)}
+                                         onBlur={() => setTimeout(() => {
+                                             setIsSkuCodeDropdownOpen(false);
+                                             // Auto-fill name if exact code match found
+                                             const match = products.find(p => p.sku_code.toLowerCase() === skuCode.toLowerCase());
+                                             if (match) {
+                                                 setSkuCode(match.sku_code);
+                                                 setSkuSearchTerm(match.sku_name);
+                                             }
+                                         }, 200)}
+                                         placeholder="Search SKU Code..."
+                                     />
+                                    {isSkuCodeDropdownOpen && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                            {products
+                                                .filter(p => p.sku_code.toLowerCase().includes(skuCode.toLowerCase()))
+                                                .map(p => (
+                                                    <div
+                                                        key={p.sku_code}
+                                                        className="p-2 hover:bg-[#1B4D3E] hover:text-white cursor-pointer"
+                                                        onMouseDown={() => {
+                                                            setSkuCode(p.sku_code);
+                                                            setSkuSearchTerm(p.sku_name);
+                                                            setIsSkuCodeDropdownOpen(false);
+                                                        }}
+                                                    >
+                                                        <span className="font-bold">{p.sku_code}</span> - {p.sku_name}
+                                                    </div>
+                                                ))
+                                            }
+                                            {products.filter(p => p.sku_code.toLowerCase().includes(skuCode.toLowerCase())).length === 0 && (
+                                                <div className="p-2 text-gray-500">No products found</div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -433,6 +486,27 @@ function StaffDashboard() {
                     </form>
                 </div>
             </main>
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+                        <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                            <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Success!</h3>
+                        <p className="text-sm text-gray-500 mb-6">Stock data has been successfully submitted.</p>
+                        <button
+                            onClick={() => setShowSuccessModal(false)}
+                            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#1B4D3E] text-base font-medium text-white hover:bg-[#143d30] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1B4D3E] sm:text-sm"
+                        >
+                            OK
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
