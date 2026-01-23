@@ -24,11 +24,28 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401) {
-      // Handle unauthorized - clear token and redirect to login
       localStorage.removeItem("token");
+      localStorage.removeItem("user");
       window.location.href = "/login";
     }
+
+    // Handle 403 Forbidden
+    if (error.response?.status === 403) {
+      console.error("Access denied", error.response?.data?.message);
+    }
+
+    // Handle 500 Server Error
+    if (error.response?.status === 500) {
+      console.error("Server error:", error.response?.data?.message);
+    }
+
+    // Handle network errors
+    if (!error.response) {
+      console.error("Network error:", error.message);
+    }
+
     return Promise.reject(error);
   },
 );
