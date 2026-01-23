@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  ticketing-frontend:
+    container_name: ticketing-frontend
+    image: itsaffnco/saffnco_stock_sales_frontend:latest
+    pull_policy: always
+    ports:
+      - "7000:80"
+    privileged: true
+    restart: unless-stopped
+    networks:
+      - default
