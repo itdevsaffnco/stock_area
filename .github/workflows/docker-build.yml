@@ -55,16 +55,16 @@ jobs:
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
           FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
         with:
-          host: ${{ secrets.PRODUCTION_SERVER_IP }}
-          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
           port: ${{ secrets.SERVER_PORT }}
-          key: ${{ secrets.PRODUCTION_SERVER_SSH_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: BACKEND_ENV,FRONTEND_ENV
           script: |
             set -e
             export PATH=$PATH:/usr/local/bin
 
-            DEPLOY_DIR="/home/${{ secrets.PRODUCTION_SERVER_USER }}/stock_area"
+            DEPLOY_DIR="/home/${{ secrets.SERVER_USER }}/stock_area"
 
             echo "Creating deployment directory..."
             mkdir -p "$DEPLOY_DIR"
