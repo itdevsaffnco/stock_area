@@ -64,11 +64,22 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
-            DEPLOY_DIR="/home/${{ secrets.SERVER_USER }}/stock_area"
+            DEPLOY_DIR="/home/${{ secrets.PRODUCTION_SERVER_USER }}/stock_area"
 
             echo "Creating deployment directory..."
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
+
+            # Fix docker socket permissions
+            echo "Fixing docker socket permissions..."
+            sudo chmod 666 /var/run/docker.sock || true
+            
+            # Add current user to docker group if not already
+            if ! groups | grep -q docker; then
+              echo "Adding user to docker group..."
+              sudo usermod -aG docker $USER || true
+              newgrp docker || true
+            fi
 
             echo "Ensure docker networks exist..."
             docker network inspect stock-area-net >/dev/null 2>&1 || \
