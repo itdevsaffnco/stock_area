@@ -2,7 +2,7 @@ name: Build and Deploy
 
 on:
   push:
-    branches: ["main", "master", "deployment_wiki"]
+    branches: ["main", "master"]
 
 jobs:
   build-and-push:
@@ -99,7 +99,7 @@ jobs:
               --env-file backend.tmp.env \
               -v /DATA/AppData/stock_area/logs:/var/www/html/storage/logs \
               -v /DATA/AppData/stock_area/mysql:/var/lib/mysql \
-              --health-cmd='curl -f http://localhost/api/health || exit 1' \
+              --health-cmd='curl -f https://stockarea-backend.saffnco.appapi/health || exit 1' \
               --health-interval=30s \
               --health-timeout=10s \
               --health-retries=3 \
@@ -117,11 +117,11 @@ jobs:
               --name saffnco_stock_sales_frontend \
               --restart always \
               --network stock-area-net \
-              -p 80:80 \
+              -p 7000:80 \
               --cpu-shares 1024 \
               --memory 2G \
               --env-file frontend.tmp.env \
-              --health-cmd='curl -f http://localhost || exit 1' \
+              --health-cmd='curl -f https://stockarea.saffnco.app" || exit 1' \
               --health-interval=30s \
               --health-timeout=10s \
               --health-retries=3 \
@@ -138,5 +138,5 @@ jobs:
             docker ps --filter "name=saffnco_stock_sales"
 
             echo "Deployment completed successfully!"
-            echo "Backend: https://${{ secrets.PRODUCTION_SERVER_IP }}:5000"
+            echo "Backend: https://stockarea-backend.saffnco.app"
             echo "Frontend: https://stockarea.saffnco.app"
