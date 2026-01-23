@@ -1,41 +1,36 @@
-import { useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { authService } from "../services";
 
 function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
-        const response = await axios.post('http://127.0.0.1:8000/api/login', {
-            email,
-            password
-        });
+      const response = await authService.login(email, password);
+      const { access_token, user } = response.data;
+      localStorage.setItem("token", access_token);
+      localStorage.setItem("user", JSON.stringify(user));
 
-        const { access_token, user } = response.data;
-        localStorage.setItem('token', access_token);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        // Redirect based on role
-        if (user.role === 'admin') {
-            navigate('/admin');
-        } else {
-            navigate('/staff');
-        }
-
+      // Redirect based on role
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/staff");
+      }
     } catch (err) {
-        setError('Login failed. Please check your credentials.');
-        console.error(err);
+      setError("Login failed. Please check your credentials.");
+      console.error(err);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -46,12 +41,8 @@ function Login() {
           <h1 className="text-3xl font-bold text-[#1B4D3E]">Stock Area</h1>
           <p className="text-gray-500 mt-2">Sign in to manage inventory</p>
         </div>
-        
-        {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-                {error}
-            </div>
-        )}
+
+        {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
@@ -68,7 +59,7 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          
+
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Password
@@ -88,7 +79,7 @@ function Login() {
             type="submit"
             disabled={isLoading}
             className={`w-full py-3 px-4 bg-[#1B4D3E] hover:bg-[#143d30] text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-[#1B4D3E] focus:ring-offset-2 transition-all ${
-              isLoading ? 'opacity-75 cursor-not-allowed' : ''
+              isLoading ? "opacity-75 cursor-not-allowed" : ""
             }`}
           >
             {isLoading ? (
@@ -100,7 +91,7 @@ function Login() {
                 Signing in...
               </span>
             ) : (
-              'Sign In'
+              "Sign In"
             )}
           </button>
         </form>

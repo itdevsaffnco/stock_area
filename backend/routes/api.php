@@ -3,10 +3,10 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\Api\StoreController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\StockController;
-use App\Http\Controllers\Api\StockTypeController;
+use App\Http\Controllers\API\StoreController;
+use App\Http\Controllers\API\ProductController;
+use App\Http\Controllers\API\StockController;
+use App\Http\Controllers\API\StockTypeController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -33,6 +33,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stocks', [StockController::class, 'index']); // Admin View
     Route::post('/stocks', [StockController::class, 'store']); // Staff Input
     Route::get('/stocks/current', [StockController::class, 'current']); // Check current stock
+    Route::put('/stocks/{id}', [StockController::class, 'update']); // Edit Stock
+    Route::delete('/stocks/{id}', [StockController::class, 'destroy']); // Delete Stock
 
     // User Management
     Route::get('/users', [AuthController::class, 'index']);
