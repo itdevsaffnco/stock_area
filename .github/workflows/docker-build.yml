@@ -64,7 +64,7 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
-            DEPLOY_DIR="/home/${{ secrets.PRODUCTION_SERVER_USER }}/stock_area"
+            DEPLOY_DIR="/home/${{ secrets.SERVER_USER }}/stock_area"
 
             echo "Creating deployment directory..."
             mkdir -p "$DEPLOY_DIR"
