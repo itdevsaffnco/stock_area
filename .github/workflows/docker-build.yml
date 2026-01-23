@@ -17,38 +17,24 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build and push Backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: true
-          tags: |
-            itsaffnco/saffnco_stock_sales_backend:latest
-            itsaffnco/saffnco_stock_sales_backend:${{ github.sha }}
-          cache-from: type=registry,ref=itsaffnco/saffnco_stock_sales_backend:buildcache
-          cache-to: type=registry,ref=itsaffnco/saffnco_stock_sales_backend:buildcache,mode=max
+          tags: itsaffnco/saffnco_stock_sales_backend:latest
 
       - name: Build and push Frontend
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           push: true
-          tags: |
-            itsaffnco/saffnco_stock_sales_frontend:latest
-            itsaffnco/saffnco_stock_sales_frontend:${{ github.sha }}
-          cache-from: type=registry,ref=itsaffnco/saffnco_stock_sales_frontend:buildcache
-          cache-to: type=registry,ref=itsaffnco/saffnco_stock_sales_frontend:buildcache,mode=max
+          tags: itsaffnco/saffnco_stock_sales_frontend:latest
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -64,79 +50,66 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
-            DEPLOY_DIR="/home/${{ secrets.SERVER_USER }}/stock_area"
-
-            echo "Creating deployment directory..."
-            mkdir -p "$DEPLOY_DIR"
-            cd "$DEPLOY_DIR"
-
             echo "Ensure docker networks exist..."
-            docker network inspect stock-area-net >/dev/null 2>&1 || \
-              docker network create stock-area-net
+            docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
+              docker network create stock-area-backend-net
 
-            echo "Creating data directories with proper permissions..."
-            mkdir -p /DATA/AppData/stock_area/mysql
-            mkdir -p /DATA/AppData/stock_area/logs
-            chmod -R 755 /DATA/AppData/stock_area
-
-            echo "Pulling latest images..."
-            docker pull itsaffnco/saffnco_stock_sales_backend:latest
-            docker pull itsaffnco/saffnco_stock_sales_frontend:latest
+            docker network inspect stock-area-frontend-net >/dev/null 2>&1 || \
+              docker network create stock-area-frontend-net
 
             echo "Deploying Backend..."
+            docker pull itsaffnco/saffnco_stock_sales_backend:latest
+
             docker stop saffnco_stock_sales_backend || true
             docker rm saffnco_stock_sales_backend || true
+
+            # Ensure data directories exist with permissive permissions
+            mkdir -p /DATA/AppData/stock_area/mysql
+            mkdir -p /DATA/AppData/stock_area/logs
+            chmod -R 777 /DATA/AppData/stock_area
+            chown -R www-data:www-data /DATA/AppData/stock_area 2>/dev/null || true
 
             echo "$BACKEND_ENV" > backend.tmp.env
 
             docker run -d \
               --name saffnco_stock_sales_backend \
               --restart always \
-              --network stock-area-net \
+              --network stock-area-backend-net \
               -p 5000:80 \
               --cpu-shares 1024 \
               --memory 4G \
               --env-file backend.tmp.env \
               -v /DATA/AppData/stock_area/logs:/var/www/html/storage/logs \
               -v /DATA/AppData/stock_area/mysql:/var/lib/mysql \
-              --health-cmd='curl -f http://localhost/api/health || exit 1' \
-              --health-interval=30s \
-              --health-timeout=10s \
-              --health-retries=3 \
               itsaffnco/saffnco_stock_sales_backend:latest
 
+            # Wait for container to be ready and setup storage
             sleep 5
+            docker exec saffnco_stock_sales_backend php artisan storage:link 2>/dev/null || true
+
+            echo "Backend storage linked successfully"
+
+            # connect backend to frontend network
+            if ! docker network inspect stock-area-frontend-net \
+                | grep -q '"Name": "saffnco_stock_sales_backend"'; then
+              docker network connect stock-area-frontend-net saffnco_stock_sales_backend
+            fi
+
+            rm backend.tmp.env
 
             echo "Deploying Frontend..."
+            docker pull itsaffnco/saffnco_stock_sales_frontend:latest
             docker stop saffnco_stock_sales_frontend || true
             docker rm saffnco_stock_sales_frontend || true
-
-            echo "$FRONTEND_ENV" > frontend.tmp.env
 
             docker run -d \
               --name saffnco_stock_sales_frontend \
               --restart always \
-              --network stock-area-net \
-              -p 80:80 \
+              --network stock-area-frontend-net \
+              -p 7000:80 \
               --cpu-shares 1024 \
               --memory 2G \
-              --env-file frontend.tmp.env \
-              --health-cmd='curl -f http://localhost || exit 1' \
-              --health-interval=30s \
-              --health-timeout=10s \
-              --health-retries=3 \
               itsaffnco/saffnco_stock_sales_frontend:latest
 
-            # Clean up temp env files
-            rm -f backend.tmp.env frontend.tmp.env
-
-            # Clean up old images
-            docker image prune -af
-
-            echo "Verifying deployment..."
-            sleep 5
-            docker ps --filter "name=saffnco_stock_sales"
-
-            echo "Deployment completed successfully!"
-            echo "Backend: https://stockarea-backend.saffnco.app"
-            echo "Frontend: https://stockarea.saffnco.app"
+            docker image prune -f
+            echo "Deployment completed."
