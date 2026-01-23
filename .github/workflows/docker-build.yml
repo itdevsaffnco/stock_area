@@ -70,34 +70,26 @@ jobs:
             mkdir -p "$DEPLOY_DIR"
             cd "$DEPLOY_DIR"
 
-            # Configure sudo to not require password for docker commands
-            echo "Configuring sudo for docker commands..."
-            if ! sudo -n docker ps &>/dev/null; then
-              echo "Setting up passwordless sudo for docker..."
-              echo "${{ secrets.SERVER_USER }} ALL=(ALL) NOPASSWD: /usr/bin/docker" | sudo tee /etc/sudoers.d/docker-${{ secrets.SERVER_USER }} > /dev/null
-              sudo chmod 440 /etc/sudoers.d/docker-${{ secrets.SERVER_USER }}
-            fi
-
             echo "Ensure docker networks exist..."
-            sudo docker network inspect stock-area-net >/dev/null 2>&1 || \
-              sudo docker network create stock-area-net
+            docker network inspect stock-area-net >/dev/null 2>&1 || \
+              docker network create stock-area-net
 
             echo "Creating data directories with proper permissions..."
-            sudo mkdir -p /DATA/AppData/stock_area/mysql
-            sudo mkdir -p /DATA/AppData/stock_area/logs
-            sudo chmod -R 755 /DATA/AppData/stock_area
+            mkdir -p /DATA/AppData/stock_area/mysql
+            mkdir -p /DATA/AppData/stock_area/logs
+            chmod -R 755 /DATA/AppData/stock_area
 
             echo "Pulling latest images..."
-            sudo docker pull itsaffnco/saffnco_stock_sales_backend:latest
-            sudo docker pull itsaffnco/saffnco_stock_sales_frontend:latest
+            docker pull itsaffnco/saffnco_stock_sales_backend:latest
+            docker pull itsaffnco/saffnco_stock_sales_frontend:latest
 
             echo "Deploying Backend..."
-            sudo docker stop saffnco_stock_sales_backend || true
-            sudo docker rm saffnco_stock_sales_backend || true
+            docker stop saffnco_stock_sales_backend || true
+            docker rm saffnco_stock_sales_backend || true
 
             echo "$BACKEND_ENV" > backend.tmp.env
 
-            sudo docker run -d \
+            docker run -d \
               --name saffnco_stock_sales_backend \
               --restart always \
               --network stock-area-net \
@@ -116,12 +108,12 @@ jobs:
             sleep 5
 
             echo "Deploying Frontend..."
-            sudo docker stop saffnco_stock_sales_frontend || true
-            sudo docker rm saffnco_stock_sales_frontend || true
+            docker stop saffnco_stock_sales_frontend || true
+            docker rm saffnco_stock_sales_frontend || true
 
             echo "$FRONTEND_ENV" > frontend.tmp.env
 
-            sudo docker run -d \
+            docker run -d \
               --name saffnco_stock_sales_frontend \
               --restart always \
               --network stock-area-net \
@@ -139,11 +131,11 @@ jobs:
             rm -f backend.tmp.env frontend.tmp.env
 
             # Clean up old images
-            sudo docker image prune -af
+            docker image prune -af
 
             echo "Verifying deployment..."
             sleep 5
-            sudo docker ps --filter "name=saffnco_stock_sales"
+            docker ps --filter "name=saffnco_stock_sales"
 
             echo "Deployment completed successfully!"
             echo "Backend: https://stockarea-backend.saffnco.app"
