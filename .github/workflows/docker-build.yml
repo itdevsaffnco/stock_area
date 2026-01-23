@@ -55,7 +55,7 @@ jobs:
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
           FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
         with:
-          host: ${{ secrets.PRODUCTION_SERVER_IP }}
+          host: ${{ secrets.SERVER_USER }}
           username: ${{ secrets.PRODUCTION_SERVER_USER }}
           port: ${{ secrets.SERVER_PORT }}
           key: ${{ secrets.PRODUCTION_SERVER_SSH_KEY }}
