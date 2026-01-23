@@ -8,6 +8,8 @@ use App\Models\Store;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\LowStockAlert;
 
 class StockController extends Controller
 {
@@ -88,6 +90,8 @@ class StockController extends Controller
                 $newRealStock -= $qty;
                 break;
             case 'Pengiriman': // Inbound
+            case 'Barang Masuk':
+            case 'Adjustment': // Treated as Inbound based on user request
                 $newRealStock += $qty;
                 break;
             case 'Retur': // Outbound return
@@ -99,23 +103,77 @@ class StockController extends Controller
             case 'Transfer Barang': // Outbound transfer
                 $newRealStock -= $qty;
                 break;
+            case 'Transfer Masuk': // Inbound transfer
+                $newRealStock += $qty;
+                break;
             default:
                 break;
         }
 
         // Create new Stock Record (Transaction)
+        // Auto-generate reason for Transfer Barang if empty
+        $reason = $validated['reason'] ?? null;
+        if ($validated['stock_type'] === 'Transfer Barang' && !empty($validated['destination_store_id'])) {
+            $destStoreName = Store::find($validated['destination_store_id'])->store_name;
+            $reason = $reason ?: "Transfer ke $destStoreName";
+        }
+
         $stock = Stock::create([
             'store_id' => $validated['store_id'],
             'user_id' => $user->id,
             'sku_code' => $validated['sku_code'],
             'stock_type' => $validated['stock_type'],
-            'reason' => $validated['reason'] ?? null,
+            'reason' => $reason,
             'destination_store_id' => $validated['destination_store_id'] ?? null,
             'stock_awal' => $stockAwal,
             'real_stock' => $newRealStock,
             'recent_stock' => $qty,
             'total_sales' => ($validated['stock_type'] == 'Penjualan') ? ($lastStock ? $lastStock->total_sales + $qty : $qty) : ($lastStock ? $lastStock->total_sales : 0),
         ]);
+
+        // Handle Automatic Destination Entry for Transfer Barang
+        if ($validated['stock_type'] === 'Transfer Barang' && !empty($validated['destination_store_id'])) {
+            $destStoreId = $validated['destination_store_id'];
+            
+            // Get last stock for destination
+            $lastDestStock = Stock::where('store_id', $destStoreId)
+                ->where('sku_code', $validated['sku_code'])
+                ->latest()
+                ->first();
+
+            $destStockAwal = $lastDestStock ? $lastDestStock->real_stock : 0;
+            $destNewRealStock = $destStockAwal + $qty;
+
+            // Get Source Store Name
+            $sourceStoreName = Store::find($validated['store_id'])->store_name;
+
+            Stock::create([
+                'store_id' => $destStoreId,
+                'user_id' => $user->id,
+                'sku_code' => $validated['sku_code'],
+                'stock_type' => 'Transfer Masuk',
+                'reason' => "Transfer dari $sourceStoreName",
+                'destination_store_id' => null, 
+                'stock_awal' => $destStockAwal,
+                'real_stock' => $destNewRealStock,
+                'recent_stock' => $qty,
+                'total_sales' => $lastDestStock ? $lastDestStock->total_sales : 0,
+            ]);
+        }
+
+        // Check for Low Stock Alert (< 12)
+        if ($newRealStock < 12) {
+            try {
+                $storeName = Store::find($validated['store_id'])->store_name;
+                $productName = Product::where('sku_code', $validated['sku_code'])->value('sku_name');
+                
+                // Send email to admin (configure MAIL_FROM_ADDRESS in .env)
+                // Sending to a default admin email
+                Mail::to('yodi@saffnco.com')->send(new LowStockAlert($productName, $storeName, $newRealStock));
+            } catch (\Exception $e) {
+                // Fail silently or log error if mail configuration is missing
+            }
+        }
 
         return response()->json([
             'message' => 'Stock updated successfully',
