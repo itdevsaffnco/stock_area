@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import SearchableDropdown from '../components/SearchableDropdown';
+import api from '../services/api';
 
 function StaffDashboard() {
     const navigate = useNavigate();
@@ -38,8 +39,8 @@ function StaffDashboard() {
             try {
                 const token = localStorage.getItem('token');
                 const [storesRes, productsRes] = await Promise.all([
-                    axios.get('http://127.0.0.1:8000/api/stores', { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get('http://127.0.0.1:8000/api/products', { headers: { Authorization: `Bearer ${token}` } })
+                    axios.get('api/stores', { headers: { Authorization: `Bearer ${token}` } }),
+                    axios.get('api/products', { headers: { Authorization: `Bearer ${token}` } })
                 ]);
                 setStores(storesRes.data);
                 setProducts(productsRes.data);
@@ -100,7 +101,7 @@ function StaffDashboard() {
             const fetchStock = async () => {
                 try {
                     const token = localStorage.getItem('token');
-                    const res = await axios.get(`http://127.0.0.1:8000/api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
+                    const res = await axios.get(`api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     setCurrentStock(res.data.current_stock);
@@ -127,7 +128,7 @@ function StaffDashboard() {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://127.0.0.1:8000/api/stocks', {
+            await axios.post('api/stocks', {
                 store_id: storeId,
                 sku_code: skuCode,
                 stock_type: stockType,
@@ -146,7 +147,7 @@ function StaffDashboard() {
             setDestSubChannel('');
             setDestStoreId('');
             // Refresh current stock
-            const res = await axios.get(`http://127.0.0.1:8000/api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
+            const res = await axios.get(`api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCurrentStock(res.data.current_stock);

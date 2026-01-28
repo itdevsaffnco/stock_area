@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import SearchableDropdown from "../components/SearchableDropdown";
+import api from "../services/api";
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -133,9 +134,9 @@ function AdminDashboard() {
       try {
         const token = localStorage.getItem("token");
         const [storesRes, productsRes, stockTypesRes] = await Promise.all([
-          axios.get("http://127.0.0.1:8000/api/stores", { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get("http://127.0.0.1:8000/api/products", { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get("http://127.0.0.1:8000/api/stock-types", { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get("api/stores", { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get("api/products", { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get("api/stock-types", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         setStores(storesRes.data);
         setProducts(productsRes.data);
@@ -156,7 +157,7 @@ function AdminDashboard() {
       const fetchStocks = async () => {
         try {
           const token = localStorage.getItem("token");
-          const res = await axios.get("http://127.0.0.1:8000/api/stocks", {
+          const res = await axios.get("api/stocks", {
             headers: { Authorization: `Bearer ${token}` },
           });
           setStocks(res.data);
@@ -170,7 +171,7 @@ function AdminDashboard() {
       const fetchUsers = async () => {
         try {
           const token = localStorage.getItem("token");
-          const res = await axios.get("http://127.0.0.1:8000/api/users", {
+          const res = await axios.get("api/users", {
             headers: { Authorization: `Bearer ${token}` },
           });
           setUsers(res.data);
@@ -188,7 +189,7 @@ function AdminDashboard() {
       const fetchCurrentStock = async () => {
         try {
           const token = localStorage.getItem("token");
-          const res = await axios.get(`http://127.0.0.1:8000/api/stocks/current?store_id=${addStockForm.storeId}&sku_code=${addStockForm.skuCode}`, {
+          const res = await axios.get(`api/stocks/current?store_id=${addStockForm.storeId}&sku_code=${addStockForm.skuCode}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           setAddStockForm((prev) => ({ ...prev, currentStock: res.data.current_stock }));
@@ -276,12 +277,12 @@ function AdminDashboard() {
     if (window.confirm("Are you sure you want to delete this stock entry? This action cannot be undone.")) {
       try {
         const token = localStorage.getItem("token");
-        await axios.delete(`http://127.0.0.1:8000/api/stocks/${id}`, {
+        await axios.delete(`api/stocks/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         alert("Stock deleted successfully");
         // Refresh stocks
-        const res = await axios.get("http://127.0.0.1:8000/api/stocks", {
+        const res = await axios.get("api/stocks", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setStocks(res.data);
@@ -297,7 +298,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://127.0.0.1:8000/api/stocks/${editingStock.id}`,
+        `api/stocks/${editingStock.id}`,
         {
           stock_type: editForm.stock_type,
           qty: parseInt(editForm.recent_stock),
@@ -309,7 +310,7 @@ function AdminDashboard() {
 
       setEditingStock(null);
       // Refresh stocks
-      const res = await axios.get("http://127.0.0.1:8000/api/stocks", {
+      const res = await axios.get("api/stocks", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setStocks(res.data);
@@ -332,7 +333,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://127.0.0.1:8000/api/stocks",
+        "api/stocks",
         {
           store_id: addStockForm.storeId,
           sku_code: addStockForm.skuCode,
@@ -352,7 +353,7 @@ function AdminDashboard() {
       }));
 
       // Refresh current stock
-      const res = await axios.get(`http://127.0.0.1:8000/api/stocks/current?store_id=${addStockForm.storeId}&sku_code=${addStockForm.skuCode}`, {
+      const res = await axios.get(`api/stocks/current?store_id=${addStockForm.storeId}&sku_code=${addStockForm.skuCode}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAddStockForm((prev) => ({ ...prev, currentStock: res.data.current_stock }));
@@ -372,7 +373,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://127.0.0.1:8000/api/users",
+        "api/users",
         {
           name: addAccountForm.name,
           email: addAccountForm.email,
@@ -410,7 +411,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/stores",
+        "api/stores",
         {
           store_name: addStoreForm.storeName,
           province: addStoreForm.province,
@@ -445,7 +446,7 @@ function AdminDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://127.0.0.1:8000/api/stores/${id}`, {
+      await axios.delete(`api/stores/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setStores((prev) => prev.filter((s) => s.id !== id));
@@ -473,7 +474,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.put(
-        `http://127.0.0.1:8000/api/stores/${editingStore.id}`,
+        `api/stores/${editingStore.id}`,
         {
           store_name: editStoreForm.storeName,
           province: editStoreForm.province,
@@ -503,7 +504,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/stock-types",
+        "api/stock-types",
         {
           name: addStockTypeForm.name,
         },
@@ -526,7 +527,7 @@ function AdminDashboard() {
     if (!window.confirm("Are you sure you want to delete this stock type?")) return;
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://127.0.0.1:8000/api/stock-types/${id}`, {
+      await axios.delete(`api/stock-types/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setStockTypes((prev) => prev.filter((st) => st.id !== id));
@@ -542,7 +543,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/products",
+        "api/products",
         {
           sku_code: addProductForm.skuCode,
           sku_name: addProductForm.skuName,
@@ -581,7 +582,7 @@ function AdminDashboard() {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://127.0.0.1:8000/api/products/${id}`, {
+      await axios.delete(`api/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProducts((prev) => prev.filter((p) => p.id !== id));
@@ -611,7 +612,7 @@ function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.put(
-        `http://127.0.0.1:8000/api/products/${editingProduct.id}`,
+        `api/products/${editingProduct.id}`,
         {
           sku_code: editProductForm.skuCode,
           sku_name: editProductForm.skuName,
