@@ -56,17 +56,32 @@ jobs:
             echo "Docker socket permissions:"
             ls -la /var/run/docker.sock 2>/dev/null || echo "Docker socket not found"
 
-            # Check if user is in docker group
+            # Try to fix docker group membership if needed
             if ! groups | grep -q docker; then
               USERNAME=$(whoami)
               echo ""
-              echo "ERROR: Current user '$USERNAME' is NOT in docker group"
-              echo "Run this command on your server to fix it:"
-              echo "  sudo usermod -aG docker $USERNAME"
-              echo "  newgrp docker"
-              exit 1
+              echo "WARNING: User '$USERNAME' is NOT in docker group"
+              echo "Attempting to add user to docker group..."
+              
+              # Check if user is sudoer and can use sudo without password
+              if sudo -n true 2>/dev/null; then
+                echo "Adding '$USERNAME' to docker group..."
+                sudo usermod -aG docker "$USERNAME"
+                echo "User added to docker group. Restarting session..."
+                # Use a new shell with the docker group
+                exec newgrp docker
+              else
+                echo ""
+                echo "ERROR: Cannot auto-fix - sudo password required"
+                echo "Please run this command on your server:"
+                echo "  sudo usermod -aG docker $USERNAME"
+                echo "Then log out and log back in, or run:"
+                echo "  newgrp docker"
+                exit 1
+              fi
             fi
 
+            echo "Docker access verified!"
             echo "Ensure docker networks exist..."
             docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
               docker network create stock-area-backend-net
