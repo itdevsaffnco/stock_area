@@ -50,13 +50,6 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
-            # Add current user to docker group if not already a member
-            if ! groups | grep -q docker; then
-              echo "Adding user to docker group..."
-              echo "${{ secrets.SERVER_PASSWORD }}" | sudo -S usermod -aG docker $(whoami)
-              newgrp docker
-            fi
-
             echo "Ensure docker networks exist..."
             docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
               docker network create stock-area-backend-net
