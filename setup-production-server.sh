@@ -50,7 +50,7 @@ echo -e "${YELLOW}📝 Installing Docker Compose...${NC}"
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
-echo -e "${YELLOW}🔧 Creating project directories...${NC}"
+echo -e "${YELLOW} Creating project directories...${NC}"
 mkdir -p /opt/stock_area
 cd /opt/stock_area
 
