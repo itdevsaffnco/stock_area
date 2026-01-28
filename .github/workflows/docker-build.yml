@@ -35,24 +35,6 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Configure Passwordless Sudo for Docker
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          port: ${{ secrets.SERVER_PORT }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # Configure passwordless sudo for docker if not already configured
-            if ! sudo -n docker ps &>/dev/null; then
-              echo "Configuring passwordless sudo for docker..."
-              echo "${{ secrets.SERVER_PASSWORD }}" | sudo -S bash -c 'echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/docker" >> /etc/sudoers.d/docker-nopass'
-              sudo chmod 440 /etc/sudoers.d/docker-nopass
-              echo "Passwordless sudo configured"
-            else
-              echo "Passwordless sudo already configured"
-            fi
-
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -68,18 +50,25 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
-            echo "Ensure docker networks exist..."
-            sudo -n docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
-              sudo -n docker network create stock-area-backend-net
+            # Add current user to docker group if not already a member
+            if ! groups | grep -q docker; then
+              echo "Adding user to docker group..."
+              echo "${{ secrets.SERVER_PASSWORD }}" | sudo -S usermod -aG docker $(whoami)
+              newgrp docker
+            fi
 
-            sudo docker network inspect stock-area-frontend-net >/dev/null 2>&1 || \
-              sudo -n docker network create stock-area-frontend-net
+            echo "Ensure docker networks exist..."
+            docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
+              docker network create stock-area-backend-net
+
+            docker network inspect stock-area-frontend-net >/dev/null 2>&1 || \
+              docker network create stock-area-frontend-net
 
             echo "Deploying Backend..."
-            sudo -n docker pull itsaffnco/saffnco_stock_sales_backend:latest
+            docker pull itsaffnco/saffnco_stock_sales_backend:latest
 
-            sudo -n docker stop saffnco_stock_sales_backend || true
-            sudo -n docker rm saffnco_stock_sales_backend || true
+            docker stop saffnco_stock_sales_backend || true
+            docker rm saffnco_stock_sales_backend || true
 
             # Ensure data directories exist with permissive permissions
             mkdir -p /DATA/AppData/stock_area/mysql
@@ -89,7 +78,7 @@ jobs:
 
             echo "$BACKEND_ENV" > backend.tmp.env
 
-            sudo -n docker run -d \
+            docker run -d \
               --name saffnco_stock_sales_backend \
               --restart always \
               --network stock-area-backend-net \
@@ -103,24 +92,24 @@ jobs:
 
             # Wait for container to be ready and setup storage
             sleep 5
-            sudo -n docker exec saffnco_stock_sales_backend php artisan storage:link 2>/dev/null || true
+            docker exec saffnco_stock_sales_backend php artisan storage:link 2>/dev/null || true
 
             echo "Backend storage linked successfully"
 
             # connect backend to frontend network
-            if ! sudo -n docker network inspect stock-area-frontend-net \
+            if ! docker network inspect stock-area-frontend-net \
                 | grep -q '"Name": "saffnco_stock_sales_backend"'; then
-              sudo -n docker network connect stock-area-frontend-net saffnco_stock_sales_backend
+              docker network connect stock-area-frontend-net saffnco_stock_sales_backend
             fi
 
             rm backend.tmp.env
 
             echo "Deploying Frontend..."
-            sudo -n docker pull itsaffnco/saffnco_stock_sales_frontend:latest
-            sudo -n docker stop saffnco_stock_sales_frontend || true
-            sudo -n docker rm saffnco_stock_sales_frontend || true
+            docker pull itsaffnco/saffnco_stock_sales_frontend:latest
+            docker stop saffnco_stock_sales_frontend || true
+            docker rm saffnco_stock_sales_frontend || true
 
-            sudo -n docker run -d \
+            docker run -d \
               --name saffnco_stock_sales_frontend \
               --restart always \
               --network stock-area-frontend-net \
@@ -129,5 +118,5 @@ jobs:
               --memory 2G \
               itsaffnco/saffnco_stock_sales_frontend:latest
 
-            sudo -n docker image prune -f
+            docker image prune -f
             echo "Deployment completed."
