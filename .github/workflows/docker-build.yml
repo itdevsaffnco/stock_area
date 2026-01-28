@@ -50,6 +50,13 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
+            # Check docker socket access
+            if ! docker ps &>/dev/null; then
+              echo "Error: No permission to access Docker socket"
+              echo "Please ensure the SSH user is in the docker group or has sudo privileges"
+              exit 1
+            fi
+
             echo "Ensure docker networks exist..."
             docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
               docker network create stock-area-backend-net
