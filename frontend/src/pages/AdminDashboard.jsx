@@ -138,11 +138,14 @@ function AdminDashboard() {
           api.get("/products", { headers: { Authorization: `Bearer ${token}` } }),
           api.get("/stock-types", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
-        setStores(storesRes.data);
-        setProducts(productsRes.data);
-        setStockTypes(stockTypesRes.data);
+        setStores(Array.isArray(storesRes.data) ? storesRes.data : []);
+        setProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
+        setStockTypes(Array.isArray(stockTypesRes.data) ? stockTypesRes.data : []);
       } catch (error) {
         console.error("Error fetching master data", error);
+        setStores([]);
+        setProducts([]);
+        setStockTypes([]);
         if (error.response && error.response.status === 401) {
           navigate("/login");
         }
