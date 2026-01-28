@@ -95,22 +95,17 @@ jobs:
             docker stop saffnco_stock_sales_backend || true
             docker rm saffnco_stock_sales_backend || true
 
-            # Ensure data directories exist with permissive permissions
-            # Use sudo with -n (non-interactive) if passwordless sudo is configured
+            # Ensure data directories exist - create them if they don't exist
             echo "Setting up data directories..."
-            if sudo -n true 2>/dev/null; then
-              echo "Using passwordless sudo"
-              sudo -n mkdir -p /DATA/AppData/stock_area/mysql
-              sudo -n mkdir -p /DATA/AppData/stock_area/logs
-              sudo -n chmod -R 777 /DATA/AppData/stock_area
-              sudo -n chown -R $(whoami):$(whoami) /DATA/AppData/stock_area 2>/dev/null || true
-            else
-              echo "Passwordless sudo not available, trying without sudo..."
+            if [ ! -d "/DATA/AppData/stock_area/mysql" ] || [ ! -d "/DATA/AppData/stock_area/logs" ]; then
+              echo "Creating missing directories..."
               mkdir -p /DATA/AppData/stock_area/mysql 2>/dev/null || \
-                { echo "Cannot create /DATA directory - please create it manually on server"; exit 1; }
-              mkdir -p /DATA/AppData/stock_area/logs 2>/dev/null || true
-              chmod -R 777 /DATA/AppData/stock_area 2>/dev/null || true
+              mkdir -p /DATA/AppData/stock_area/logs 2>/dev/null || \
+              echo "Note: /DATA directories may need sudo access - Docker volumes will create missing dirs"
             fi
+
+            # Ensure proper permissions if possible
+            chmod -R 777 /DATA/AppData/stock_area 2>/dev/null || true
 
             echo "$BACKEND_ENV" > backend.tmp.env
 
