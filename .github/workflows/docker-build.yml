@@ -50,25 +50,18 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
-            # Check docker socket access
-            if ! docker ps &>/dev/null; then
-              echo "Error: No permission to access Docker socket"
-              echo "Please ensure the SSH user is in the docker group or has sudo privileges"
-              exit 1
-            fi
-
             echo "Ensure docker networks exist..."
-            docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
-              docker network create stock-area-backend-net
+            sudo docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
+              sudo docker network create stock-area-backend-net
 
-            docker network inspect stock-area-frontend-net >/dev/null 2>&1 || \
-              docker network create stock-area-frontend-net
+            sudo docker network inspect stock-area-frontend-net >/dev/null 2>&1 || \
+              sudo docker network create stock-area-frontend-net
 
             echo "Deploying Backend..."
-            docker pull itsaffnco/saffnco_stock_sales_backend:latest
+            sudo docker pull itsaffnco/saffnco_stock_sales_backend:latest
 
-            docker stop saffnco_stock_sales_backend || true
-            docker rm saffnco_stock_sales_backend || true
+            sudo docker stop saffnco_stock_sales_backend || true
+            sudo docker rm saffnco_stock_sales_backend || true
 
             # Ensure data directories exist with permissive permissions
             mkdir -p /DATA/AppData/stock_area/mysql
@@ -78,7 +71,7 @@ jobs:
 
             echo "$BACKEND_ENV" > backend.tmp.env
 
-            docker run -d \
+            sudo docker run -d \
               --name saffnco_stock_sales_backend \
               --restart always \
               --network stock-area-backend-net \
@@ -92,24 +85,24 @@ jobs:
 
             # Wait for container to be ready and setup storage
             sleep 5
-            docker exec saffnco_stock_sales_backend php artisan storage:link 2>/dev/null || true
+            sudo docker exec saffnco_stock_sales_backend php artisan storage:link 2>/dev/null || true
 
             echo "Backend storage linked successfully"
 
             # connect backend to frontend network
-            if ! docker network inspect stock-area-frontend-net \
+            if ! sudo docker network inspect stock-area-frontend-net \
                 | grep -q '"Name": "saffnco_stock_sales_backend"'; then
-              docker network connect stock-area-frontend-net saffnco_stock_sales_backend
+              sudo docker network connect stock-area-frontend-net saffnco_stock_sales_backend
             fi
 
             rm backend.tmp.env
 
             echo "Deploying Frontend..."
-            docker pull itsaffnco/saffnco_stock_sales_frontend:latest
-            docker stop saffnco_stock_sales_frontend || true
-            docker rm saffnco_stock_sales_frontend || true
+            sudo docker pull itsaffnco/saffnco_stock_sales_frontend:latest
+            sudo docker stop saffnco_stock_sales_frontend || true
+            sudo docker rm saffnco_stock_sales_frontend || true
 
-            docker run -d \
+            sudo docker run -d \
               --name saffnco_stock_sales_frontend \
               --restart always \
               --network stock-area-frontend-net \
@@ -118,5 +111,5 @@ jobs:
               --memory 2G \
               itsaffnco/saffnco_stock_sales_frontend:latest
 
-            docker image prune -f
+            sudo docker image prune -f
             echo "Deployment completed."
