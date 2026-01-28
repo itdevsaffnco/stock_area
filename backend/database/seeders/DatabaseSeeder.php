@@ -19,14 +19,14 @@ class DatabaseSeeder extends Seeder
         User::create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make('saffnco'),
             'role' => 'admin' // Assuming role column exists from user description/migration
         ]);
 
         User::create([
             'name' => 'Staff User',
             'email' => 'staff@example.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make('saffnco'),
             'role' => 'staff'
         ]);
 
