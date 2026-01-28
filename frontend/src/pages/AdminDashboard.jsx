@@ -134,9 +134,9 @@ function AdminDashboard() {
       try {
         const token = localStorage.getItem("token");
         const [storesRes, productsRes, stockTypesRes] = await Promise.all([
-          axios.get("api/stores", { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get("api/products", { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get("api/stock-types", { headers: { Authorization: `Bearer ${token}` } }),
+          api.get("/stores", { headers: { Authorization: `Bearer ${token}` } }),
+          api.get("/products", { headers: { Authorization: `Bearer ${token}` } }),
+          api.get("/stock-types", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         setStores(storesRes.data);
         setProducts(productsRes.data);
