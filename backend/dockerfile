@@ -6,8 +6,10 @@ RUN apt-get update && apt-get install -y \
     libpq-dev libicu-dev g++ \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+# Enable Apache modules
+RUN a2enmod rewrite && \
+    a2enmod headers && \
+    a2enmod deflate
 
 # Set working directory
 WORKDIR /var/www/html
@@ -35,3 +37,5 @@ RUN rm -rf public/storage && \
     chmod -R 775 storage bootstrap/cache
 
 EXPOSE 80
+
+CMD ["apache2-foreground"]
