@@ -96,10 +96,12 @@ jobs:
             docker rm saffnco_stock_sales_backend || true
 
             # Ensure data directories exist with permissive permissions
-            mkdir -p /DATA/AppData/stock_area/mysql
-            mkdir -p /DATA/AppData/stock_area/logs
-            chmod -R 777 /DATA/AppData/stock_area
-            chown -R www-data:www-data /DATA/AppData/stock_area 2>/dev/null || true
+            # Use sudo if needed for /DATA directory which may require elevated privileges
+            echo "Setting up data directories..."
+            sudo mkdir -p /DATA/AppData/stock_area/mysql
+            sudo mkdir -p /DATA/AppData/stock_area/logs
+            sudo chmod -R 777 /DATA/AppData/stock_area
+            sudo chown -R $(whoami):$(whoami) /DATA/AppData/stock_area 2>/dev/null || true
 
             echo "$BACKEND_ENV" > backend.tmp.env
 
