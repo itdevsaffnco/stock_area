@@ -58,10 +58,11 @@ jobs:
 
             # Check if user is in docker group
             if ! groups | grep -q docker; then
+              USERNAME=$(whoami)
               echo ""
-              echo "ERROR: Current user is NOT in docker group"
+              echo "ERROR: Current user '$USERNAME' is NOT in docker group"
               echo "Run this command on your server to fix it:"
-              echo "  sudo usermod -aG docker $(whoami)"
+              echo "  sudo usermod -aG docker $USERNAME"
               echo "  newgrp docker"
               exit 1
             fi
