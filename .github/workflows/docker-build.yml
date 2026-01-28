@@ -50,6 +50,22 @@ jobs:
             set -e
             export PATH=$PATH:/usr/local/bin
 
+            # Diagnostics
+            echo "Current user: $(whoami)"
+            echo "User groups: $(groups)"
+            echo "Docker socket permissions:"
+            ls -la /var/run/docker.sock 2>/dev/null || echo "Docker socket not found"
+
+            # Check if user is in docker group
+            if ! groups | grep -q docker; then
+              echo ""
+              echo "ERROR: Current user is NOT in docker group"
+              echo "Run this command on your server to fix it:"
+              echo "  sudo usermod -aG docker $(whoami)"
+              echo "  newgrp docker"
+              exit 1
+            fi
+
             echo "Ensure docker networks exist..."
             docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
               docker network create stock-area-backend-net
