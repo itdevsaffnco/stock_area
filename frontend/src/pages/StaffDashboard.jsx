@@ -39,8 +39,8 @@ function StaffDashboard() {
       try {
         const token = localStorage.getItem("token");
         const [storesRes, productsRes] = await Promise.all([axios.get("api/stores", { headers: { Authorization: `Bearer ${token}` } }), axios.get("api/products", { headers: { Authorization: `Bearer ${token}` } })]);
-        setStores(storesRes.data);
-        setProducts(productsRes.data);
+        setStores(Array.isArray(storesRes.data) ? storesRes.data : Array.isArray(storesRes.data?.data) ? storesRes.data.data : []);
+        setProducts(Array.isArray(productsRes.data) ? productsRes.data : Array.isArray(productsRes.data?.data) ? productsRes.data.data : []);
       } catch (error) {
         console.error("Error fetching data", error);
         if (error.response && error.response.status === 401) {

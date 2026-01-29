@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import SearchableDropdown from "../components/SearchableDropdown";
 import api from "../services/api";
@@ -138,9 +137,9 @@ function AdminDashboard() {
           api.get("/products", { headers: { Authorization: `Bearer ${token}` } }),
           api.get("/stock-types", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
-        setStores(Array.isArray(storesRes.data) ? storesRes.data : []);
-        setProducts(Array.isArray(productsRes.data) ? productsRes.data : []);
-        setStockTypes(Array.isArray(stockTypesRes.data) ? stockTypesRes.data : []);
+        setStores(Array.isArray(storesRes.data) ? storesRes.data : Array.isArray(storesRes.data?.data) ? storesRes.data.data : []);
+        setProducts(Array.isArray(productsRes.data) ? productsRes.data : Array.isArray(productsRes.data?.data) ? productsRes.data.data : []);
+        setStockTypes(Array.isArray(stockTypesRes.data) ? stockTypesRes.data : Array.isArray(stockTypesRes.data?.data) ? stockTypesRes.data.data : []);
       } catch (error) {
         console.error("Error fetching master data", error);
         setStores([]);
@@ -160,12 +159,13 @@ function AdminDashboard() {
       const fetchStocks = async () => {
         try {
           const token = localStorage.getItem("token");
-          const res = await axios.get("api/stocks", {
+          const res = await api.get("/stocks", {
             headers: { Authorization: `Bearer ${token}` },
           });
-          setStocks(res.data);
+          setStocks(Array.isArray(res.data) ? res.data : Array.isArray(res.data?.data) ? res.data.data : []);
         } catch (error) {
           console.error("Error fetching stocks", error);
+          setStocks([]);
         }
       };
       fetchStocks();
@@ -174,12 +174,13 @@ function AdminDashboard() {
       const fetchUsers = async () => {
         try {
           const token = localStorage.getItem("token");
-          const res = await axios.get("api/users", {
+          const res = await api.get("/users", {
             headers: { Authorization: `Bearer ${token}` },
           });
-          setUsers(res.data);
+          setUsers(Array.isArray(res.data) ? res.data : Array.isArray(res.data?.data) ? res.data.data : []);
         } catch (error) {
           console.error("Error fetching users", error);
+          setUsers([]);
         }
       };
       fetchUsers();
