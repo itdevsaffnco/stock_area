@@ -17,7 +17,9 @@ function Login() {
     setError("");
 
     try {
+      console.log("Login attempt with email:", email);
       const response = await authService.login(email, password);
+      console.log("Login response:", response);
       const { access_token, user } = response.data;
       localStorage.setItem("token", access_token);
       localStorage.setItem("user", JSON.stringify(user));
@@ -29,13 +31,14 @@ function Login() {
         navigate("/staff");
       }
     } catch (err) {
+      console.error("Login error:", err);
+      console.error("Error response:", err.response);
       const errorMessage = err.response?.data?.message || "Login failed. Please check your email and password.";
       setError(errorMessage);
       setToast({
         message: errorMessage,
         type: "error",
       });
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
