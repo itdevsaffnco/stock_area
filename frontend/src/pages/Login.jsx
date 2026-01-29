@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services";
+import Toast from "../components/Toast";
 
 function Login() {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ function Login() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -27,7 +29,12 @@ function Login() {
         navigate("/staff");
       }
     } catch (err) {
-      setError("Login failed. Please check your credentials.");
+      const errorMessage = err.response?.data?.message || "Login failed. Please check your email and password.";
+      setError(errorMessage);
+      setToast({
+        message: errorMessage,
+        type: "error",
+      });
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -36,13 +43,12 @@ function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
+      {toast && <Toast message={toast.message} type={toast.type} duration={5000} onClose={() => setToast(null)} />}
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-[#1B4D3E]">Stock Area</h1>
           <p className="text-gray-500 mt-2">Sign in to manage inventory</p>
         </div>
-
-        {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
