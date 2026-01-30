@@ -36,10 +36,7 @@ function StaffDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [storesRes, productsRes] = await Promise.all([
-          api.get("/stores"),
-          api.get("/products")
-        ]);
+        const [storesRes, productsRes] = await Promise.all([api.get("/stores"), api.get("/products")]);
         setStores(Array.isArray(storesRes.data) ? storesRes.data : Array.isArray(storesRes.data?.data) ? storesRes.data.data : []);
         setProducts(Array.isArray(productsRes.data) ? productsRes.data : Array.isArray(productsRes.data?.data) ? productsRes.data.data : []);
       } catch (error) {
@@ -123,17 +120,14 @@ function StaffDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      await api.post(
-        "/stocks",
-        {
-          store_id: storeId,
-          sku_code: skuCode,
-          stock_type: stockType,
-          qty: parseInt(qty),
-          reason: stockType === "Retur" ? reason : null,
-          destination_store_id: stockType === "Transfer Barang" ? destStoreId : null,
-        },
-      );
+      await api.post("/stocks", {
+        store_id: storeId,
+        sku_code: skuCode,
+        stock_type: stockType,
+        qty: parseInt(qty),
+        reason: stockType === "Retur" ? reason : null,
+        destination_store_id: stockType === "Transfer Barang" ? destStoreId : null,
+      });
       setShowSuccessModal(true);
       setMessage("");
       setQty("");
@@ -145,7 +139,6 @@ function StaffDashboard() {
       // Refresh current stock
       const res = await api.get("/stocks/current", {
         params: { store_id: storeId, sku_code: skuCode },
-      });
       });
       setCurrentStock(res.data.current_stock);
     } catch (error) {
