@@ -18,7 +18,6 @@ function Login() {
 
     try {
       console.log("Login attempt with email:", email);
-      ß;
       const response = await authService.login(email, password);
       console.log("Login response:", response);
       const { access_token, user } = response.data;
