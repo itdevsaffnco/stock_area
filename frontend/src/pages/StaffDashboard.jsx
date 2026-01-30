@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import SearchableDropdown from "../components/SearchableDropdown";
 import api from "../services/api";
@@ -37,8 +36,10 @@ function StaffDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const [storesRes, productsRes] = await Promise.all([axios.get("api/stores", { headers: { Authorization: `Bearer ${token}` } }), axios.get("api/products", { headers: { Authorization: `Bearer ${token}` } })]);
+        const [storesRes, productsRes] = await Promise.all([
+          api.get("/stores"),
+          api.get("/products")
+        ]);
         setStores(Array.isArray(storesRes.data) ? storesRes.data : Array.isArray(storesRes.data?.data) ? storesRes.data.data : []);
         setProducts(Array.isArray(productsRes.data) ? productsRes.data : Array.isArray(productsRes.data?.data) ? productsRes.data.data : []);
       } catch (error) {
@@ -95,9 +96,8 @@ function StaffDashboard() {
     if (storeId && skuCode) {
       const fetchStock = async () => {
         try {
-          const token = localStorage.getItem("token");
-          const res = await axios.get(`api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
-            headers: { Authorization: `Bearer ${token}` },
+          const res = await api.get("/stocks/current", {
+            params: { store_id: storeId, sku_code: skuCode },
           });
           setCurrentStock(res.data.current_stock);
         } catch (error) {
@@ -123,8 +123,8 @@ function StaffDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.post(
-        "api/stocks",
+      await api.post(
+        "/stocks",
         {
           store_id: storeId,
           sku_code: skuCode,
@@ -132,9 +132,6 @@ function StaffDashboard() {
           qty: parseInt(qty),
           reason: stockType === "Retur" ? reason : null,
           destination_store_id: stockType === "Transfer Barang" ? destStoreId : null,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
         },
       );
       setShowSuccessModal(true);
@@ -146,8 +143,9 @@ function StaffDashboard() {
       setDestSubChannel("");
       setDestStoreId("");
       // Refresh current stock
-      const res = await axios.get(`api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await api.get("/stocks/current", {
+        params: { store_id: storeId, sku_code: skuCode },
+      });
       });
       setCurrentStock(res.data.current_stock);
     } catch (error) {
