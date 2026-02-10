@@ -28,6 +28,12 @@ class Stock extends Model
         'total_sales',
         'final_stock_fisik',
         'sales_value',
+        'status',
+        'approved_qty',
+        'delivery_date',
+        'order_number',
+        'receipt_number',
+        'tracking_status',
     ];
 
     public function store()

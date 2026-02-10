@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { storeService, productService, stockTypeService, stockService } from '../services';
 import { useNavigate } from 'react-router-dom';
 import SearchableDropdown from '../components/SearchableDropdown';
 
@@ -20,7 +20,8 @@ function StaffDashboard() {
     const [destChannel, setDestChannel] = useState('');
     const [destStoreId, setDestStoreId] = useState('');
     
-    const [stockType, setStockType] = useState('Penjualan');
+    const [stockType, setStockType] = useState('');
+    const [stockTypes, setStockTypes] = useState([]); // Add stockTypes state
     const [skuCode, setSkuCode] = useState('');
     const [skuSearchTerm, setSkuSearchTerm] = useState('');
     const [isSkuDropdownOpen, setIsSkuDropdownOpen] = useState(false);
@@ -36,13 +37,14 @@ function StaffDashboard() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const [storesRes, productsRes] = await Promise.all([
-                    axios.get('http://127.0.0.1:8000/api/stores', { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get('http://127.0.0.1:8000/api/products', { headers: { Authorization: `Bearer ${token}` } })
+                const [storesRes, productsRes, stockTypesRes] = await Promise.all([
+                    storeService.getAll(),
+                    productService.getAll(),
+                    stockTypeService.getAll(),
                 ]);
                 setStores(storesRes.data);
                 setProducts(productsRes.data);
+                setStockTypes(stockTypesRes.data.data || stockTypesRes.data);
             } catch (error) {
                 console.error('Error fetching data', error);
                 if (error.response && error.response.status === 401) {
@@ -99,10 +101,7 @@ function StaffDashboard() {
         if (storeId && skuCode) {
             const fetchStock = async () => {
                 try {
-                    const token = localStorage.getItem('token');
-                    const res = await axios.get(`http://127.0.0.1:8000/api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
+                    const res = await stockService.getCurrent(storeId, skuCode);
                     setCurrentStock(res.data.current_stock);
                 } catch (error) {
                     console.error('Error fetching stock', error);
@@ -113,6 +112,37 @@ function StaffDashboard() {
             setCurrentStock(0);
         }
     }, [storeId, skuCode]);
+
+    const handleDownloadOpname = async () => {
+        if (!storeId) {
+            setMessage('Error: Please select a store first.');
+            return;
+        }
+
+        try {
+            const response = await stockService.downloadOpnameTemplate(storeId);
+
+            // Extract filename from header if possible, or generate one
+            const contentDisposition = response.headers['content-disposition'];
+            let filename = `stock_opname_${storeId}_${new Date().toISOString().slice(0, 10)}.csv`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch.length === 2)
+                    filename = filenameMatch[1];
+            }
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error('Error downloading opname template', error);
+            setMessage('Error downloading template: ' + (error.response?.data?.message || error.message));
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -126,16 +156,13 @@ function StaffDashboard() {
         setMessage('');
 
         try {
-            const token = localStorage.getItem('token');
-            await axios.post('http://127.0.0.1:8000/api/stocks', {
+            await stockService.create({
                 store_id: storeId,
                 sku_code: skuCode,
                 stock_type: stockType,
                 qty: parseInt(qty),
                 reason: stockType === 'Retur' ? reason : null,
                 destination_store_id: stockType === 'Transfer Barang' ? destStoreId : null
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
             setShowSuccessModal(true);
             setMessage('');
@@ -146,9 +173,7 @@ function StaffDashboard() {
             setDestSubChannel('');
             setDestStoreId('');
             // Refresh current stock
-            const res = await axios.get(`http://127.0.0.1:8000/api/stocks/current?store_id=${storeId}&sku_code=${skuCode}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await stockService.getCurrent(storeId, skuCode);
             setCurrentStock(res.data.current_stock);
         } catch (error) {
             setMessage('Error updating stock: ' + (error.response?.data?.message || error.message));
@@ -161,8 +186,6 @@ function StaffDashboard() {
         localStorage.removeItem('token');
         navigate('/login');
     };
-
-    const selectedProduct = products.find(p => p.sku_code === skuCode);
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
@@ -262,11 +285,10 @@ function StaffDashboard() {
                                     onChange={(e) => setStockType(e.target.value)}
                                     required
                                 >
-                                    <option value="Penjualan">Penjualan</option>
-                                    <option value="Pengiriman">Pengiriman</option>
-                                    <option value="Retur">Retur</option>
-                                    <option value="Tester">Tester</option>
-                                    <option value="Transfer Barang">Transfer Barang</option>
+                                    <option value="">Select Stock Type</option>
+                                    {stockTypes.map((type) => (
+                                        <option key={type.id} value={type.name}>{type.name}</option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -351,6 +373,30 @@ function StaffDashboard() {
                                 </div>
                             )}
 
+                            {stockType === 'Stock Opname' ? (
+                                // Stock Opname Mode UI
+                                <div className="pt-8 text-center">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                                        <h3 className="text-lg font-medium text-blue-900 mb-2">Stock Opname Mode</h3>
+                                        <p className="text-blue-700 mb-4">
+                                            Please download the stock opname sheet for the selected store below.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={handleDownloadOpname}
+                                            className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${!storeId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            disabled={!storeId}
+                                        >
+                                            <svg className="-ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                            Download Opname Sheet
+                                        </button>
+                                        {!storeId && <p className="text-sm text-red-500 mt-2 font-medium">Please select a store above to enable download.</p>}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="relative md:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700">SKU Name</label>
@@ -471,17 +517,19 @@ function StaffDashboard() {
                                     />
                                 </div>
                             </div>
+                            
+                            <div className="pt-4">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className={`w-full py-3 px-4 bg-[#1B4D3E] hover:bg-[#143d30] text-white font-bold rounded-lg shadow-md transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                >
+                                    {isLoading ? 'Saving...' : 'Submit Stock Entry'}
+                                </button>
+                            </div>
                         </div>
-
-                        <div className="pt-4">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className={`w-full py-3 px-4 bg-[#1B4D3E] hover:bg-[#143d30] text-white font-bold rounded-lg shadow-md transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                            >
-                                {isLoading ? 'Saving...' : 'Submit Stock Entry'}
-                            </button>
-                        </div>
+                        )}
+                    </div>
 
                     </form>
                 </div>
@@ -511,4 +559,4 @@ function StaffDashboard() {
     );
 }
 
-export default StaffDashboard;
+export default StaffDashboard; 

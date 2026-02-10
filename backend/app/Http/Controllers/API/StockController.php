@@ -9,6 +9,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use App\Mail\LowStockAlert;
 
 class StockController extends Controller
@@ -106,6 +107,9 @@ class StockController extends Controller
             case 'Transfer Masuk': // Inbound transfer
                 $newRealStock += $qty;
                 break;
+            case 'Request Stock':
+                $newRealStock = $currentRealStock;
+                break;
             default:
                 break;
         }
@@ -129,6 +133,7 @@ class StockController extends Controller
             'real_stock' => $newRealStock,
             'recent_stock' => $qty,
             'total_sales' => ($validated['stock_type'] == 'Penjualan') ? ($lastStock ? $lastStock->total_sales + $qty : $qty) : ($lastStock ? $lastStock->total_sales : 0),
+            'status' => ($validated['stock_type'] == 'Request Stock') ? 'Pending' : 'Completed',
         ]);
 
         // Handle Automatic Destination Entry for Transfer Barang
@@ -179,5 +184,159 @@ class StockController extends Controller
             'message' => 'Stock updated successfully',
             'data' => $stock
         ]);
+    }
+
+    public function approve(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'approved_qty' => 'required|integer',
+            'delivery_date' => 'required|date',
+            'order_number' => 'required|string',
+            'receipt_number' => 'required|string',
+            'tracking_status' => 'required|string',
+        ]);
+
+        $stock = Stock::find($id);
+        if (!$stock) {
+            return response()->json(['message' => 'Stock request not found'], 404);
+        }
+
+        // Logic to add stock if status becomes 'Delivered' immediately upon approval
+        if ($validated['tracking_status'] === 'Delivered' && $stock->tracking_status !== 'Delivered') {
+            $lastStock = Stock::where('store_id', $stock->store_id)
+                ->where('sku_code', $stock->sku_code)
+                ->latest()
+                ->first();
+
+            $currentRealStock = $lastStock ? $lastStock->real_stock : 0;
+            $qtyToAdd = $validated['approved_qty']; // Use the validated approved qty
+
+            Stock::create([
+                'store_id' => $stock->store_id,
+                'user_id' => $request->user()->id ?? $stock->user_id,
+                'sku_code' => $stock->sku_code,
+                'stock_type' => 'Penerimaan Barang',
+                'reason' => 'Penerimaan Request Stock #' . $stock->id,
+                'stock_awal' => $currentRealStock,
+                'real_stock' => $currentRealStock + $qtyToAdd,
+                'recent_stock' => $qtyToAdd,
+                'status' => 'Completed',
+                'tracking_status' => 'Delivered',
+                'order_number' => $validated['order_number'],
+                'receipt_number' => $validated['receipt_number'],
+            ]);
+        }
+
+        $stock->update([
+            'status' => 'Approved',
+            'approved_qty' => $validated['approved_qty'],
+            'delivery_date' => $validated['delivery_date'],
+            'order_number' => $validated['order_number'],
+            'receipt_number' => $validated['receipt_number'],
+            'tracking_status' => $validated['tracking_status'],
+        ]);
+
+        return response()->json(['message' => 'Stock request approved successfully', 'data' => $stock]);
+    }
+
+    public function updateTracking(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'tracking_status' => 'required|string',
+        ]);
+
+        $stock = Stock::find($id);
+        if (!$stock) {
+            return response()->json(['message' => 'Stock request not found'], 404);
+        }
+
+        // Logic to add stock if status becomes 'Delivered'
+        // Check if it was NOT already delivered (to avoid duplicate increments)
+        if ($validated['tracking_status'] === 'Delivered' && $stock->tracking_status !== 'Delivered') {
+            
+            // Get the absolute latest stock record for this store+sku to calculate the new running total
+            $lastStock = Stock::where('store_id', $stock->store_id)
+                ->where('sku_code', $stock->sku_code)
+                ->latest()
+                ->first();
+
+            $currentRealStock = $lastStock ? $lastStock->real_stock : 0;
+            // Use approved_qty if set, otherwise fallback to recent_stock (requested qty)
+            $qtyToAdd = $stock->approved_qty ?? $stock->recent_stock;
+            
+            $newRealStock = $currentRealStock + $qtyToAdd;
+
+            // Create a NEW ledger entry for the "Arrival" of goods
+            Stock::create([
+                'store_id' => $stock->store_id,
+                'user_id' => $request->user()->id ?? $stock->user_id,
+                'sku_code' => $stock->sku_code,
+                'stock_type' => 'Penerimaan Barang', // Indicates stock arrival
+                'reason' => 'Penerimaan Request Stock #' . $stock->id,
+                'stock_awal' => $currentRealStock,
+                'real_stock' => $newRealStock,
+                'recent_stock' => $qtyToAdd,
+                'status' => 'Completed',
+                'tracking_status' => 'Delivered',
+                'order_number' => $stock->order_number,
+                'receipt_number' => $stock->receipt_number,
+            ]);
+        }
+
+        $stock->update([
+            'tracking_status' => $validated['tracking_status'],
+        ]);
+
+        return response()->json(['message' => 'Tracking status updated successfully', 'data' => $stock]);
+    }
+
+    public function downloadOpnameTemplate(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+        ]);
+
+        $store = Store::find($request->store_id);
+        $products = Product::all();
+
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=stock_opname_" . Str::slug($store->store_name) . "_" . date('Y-m-d') . ".csv",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        $callback = function() use ($store, $products) {
+            $file = fopen('php://output', 'w');
+            
+            // Header
+            fputcsv($file, ['Store Name', 'SKU Code', 'SKU Name', 'Category', 'System Stock', 'Physical Stock', 'Difference', 'Notes']);
+
+            foreach ($products as $product) {
+                // Get system stock
+                $lastStock = Stock::where('store_id', $store->id)
+                    ->where('sku_code', $product->sku_code)
+                    ->latest()
+                    ->first();
+                
+                $systemStock = $lastStock ? $lastStock->real_stock : 0;
+
+                fputcsv($file, [
+                    $store->store_name,
+                    $product->sku_code,
+                    $product->sku_name,
+                    $product->category,
+                    $systemStock,
+                    '', // Physical Stock
+                    '', // Difference
+                    ''  // Notes
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
