@@ -1,6 +1,5 @@
 import api from "./api";
 
-// Store API endpoints
 export const storeService = {
   getAll: () => api.get("/stores"),
   getById: (id) => api.get(`/stores/${id}`),
@@ -9,7 +8,6 @@ export const storeService = {
   delete: (id) => api.delete(`/stores/${id}`),
 };
 
-// Product API endpoints
 export const productService = {
   getAll: () => api.get("/products"),
   getById: (id) => api.get(`/products/${id}`),
@@ -18,7 +16,6 @@ export const productService = {
   delete: (id) => api.delete(`/products/${id}`),
 };
 
-// Stock API endpoints
 export const stockService = {
   getAll: () => api.get("/stocks"),
   getCurrent: (storeId, skuCode) =>
@@ -32,25 +29,29 @@ export const stockService = {
     api.get("/stocks", {
       params: { store_id: storeId },
     }),
+  approve: (id, data) => api.put(`/stocks/${id}/approve`, data),
+  tracking: (id, data) => api.put(`/stocks/${id}/tracking`, data),
+  downloadOpnameTemplate: (storeId) =>
+    api.get("/stocks/opname-template", {
+      params: { store_id: storeId },
+      responseType: "blob",
+    }),
 };
 
-// Stock Type API endpoints
 export const stockTypeService = {
   getAll: () => api.get("/stock-types"),
   create: (data) => api.post("/stock-types", data),
   delete: (id) => api.delete(`/stock-types/${id}`),
+  update: (id, data) => api.put(`/stock-types/${id}`, data),
 };
 
-// User API endpoints
 export const userService = {
   getAll: () => api.get("/users"),
   create: (data) => api.post("/users", data),
 };
 
-// Auth API endpoints
 export const authService = {
   login: (email, password) => api.post("/login", { email, password }),
-
   logout: () => {
     localStorage.removeItem("token");
   },

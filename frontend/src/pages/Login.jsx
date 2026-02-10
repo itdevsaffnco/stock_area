@@ -1,7 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { authService } from "../services";
-import Toast from "../components/Toast";
+import { useState } from 'react';
+import { authService } from '../services';
+import { useNavigate } from 'react-router-dom';
 
 function Login() {
   const navigate = useNavigate();
@@ -17,12 +16,18 @@ function Login() {
     setError("");
 
     try {
-      console.log("Login attempt with email:", email);
-      const response = await authService.login(email, password);
-      console.log("Login response:", response);
-      const { access_token, user } = response.data;
-      localStorage.setItem("token", access_token);
-      localStorage.setItem("user", JSON.stringify(user));
+        const response = await authService.login(email, password);
+
+        const { access_token, user } = response.data;
+        localStorage.setItem('token', access_token);
+        localStorage.setItem('user', JSON.stringify(user));
+
+        // Redirect based on role
+        if (user.role === 'admin') {
+            navigate('/admin');
+        } else {
+            navigate('/staff');
+        }
 
       // Redirect based on role
       if (user.role === "admin") {

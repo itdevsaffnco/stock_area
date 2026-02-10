@@ -23,6 +23,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/stores/{id}', [StoreController::class, 'destroy']);
     Route::get('/stock-types', [StockTypeController::class, 'index']);
     Route::post('/stock-types', [StockTypeController::class, 'store']);
+    Route::put('/stock-types/{id}', [StockTypeController::class, 'update']);
     Route::delete('/stock-types/{id}', [StockTypeController::class, 'destroy']);
     Route::get('/products', [ProductController::class, 'index']);
     Route::post('/products', [ProductController::class, 'store']);
@@ -33,8 +34,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stocks', [StockController::class, 'index']); // Admin View
     Route::post('/stocks', [StockController::class, 'store']); // Staff Input
     Route::get('/stocks/current', [StockController::class, 'current']); // Check current stock
-    Route::put('/stocks/{id}', [StockController::class, 'update']); // Edit Stock
-    Route::delete('/stocks/{id}', [StockController::class, 'destroy']); // Delete Stock
+    Route::get('/stocks/opname-template', [StockController::class, 'downloadOpnameTemplate']); // Download Opname Template
+    Route::put('/stocks/{id}/approve', [StockController::class, 'approve']);
+    Route::put('/stocks/{id}/tracking', [StockController::class, 'updateTracking']);
 
     // User Management
     Route::get('/users', [AuthController::class, 'index']);

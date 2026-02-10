@@ -39,4 +39,24 @@ class StockTypeController extends Controller
 
         return response()->json(['message' => 'Stock type deleted successfully']);
     }
+
+    public function update(Request $request, $id)
+    {
+        $stockType = StockType::find($id);
+
+        if (!$stockType) {
+            return response()->json(['message' => 'Stock type not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:stock_types,name,' . $id,
+        ]);
+
+        $stockType->update($validated);
+
+        return response()->json([
+            'message' => 'Stock type updated successfully',
+            'data' => $stockType
+        ]);
+    }
 }
