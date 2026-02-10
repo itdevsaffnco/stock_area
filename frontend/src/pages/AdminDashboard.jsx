@@ -31,6 +31,8 @@ function AdminDashboard() {
     const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
     const [storeSearchTerm, setStoreSearchTerm] = useState("");
     const [productSearchTerm, setProductSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
 
     // --- Missing States Restored ---
     const [editingStock, setEditingStock] = useState(null);
@@ -652,6 +654,15 @@ function AdminDashboard() {
       });
   }, [stocks, filterDateStart, filterDateEnd, filterProvince, filterChannel, filterSubChannel, filterStore, filterSku, filterStatus, sortConfig]);
 
+  const paginatedStocks = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredStocks.slice(start, start + pageSize);
+  }, [filteredStocks, currentPage]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredStocks.length / pageSize)), [filteredStocks]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterDateStart, filterDateEnd, filterProvince, filterStore, filterSku, filterStatus]);
+
   const requestSort = (key) => {
     let direction = "desc";
     if (sortConfig.key === key && sortConfig.direction === "desc") {
@@ -740,7 +751,7 @@ function AdminDashboard() {
   const renderStockTable = (withActions = false) => (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-100">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('created_at')}>
@@ -755,38 +766,49 @@ function AdminDashboard() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('real_stock')}>
                 Real Stock {getSortIcon('real_stock')}
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
               {withActions && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredStocks.length === 0 ? (
+            {paginatedStocks.length === 0 ? (
               <tr>
-                <td colSpan={withActions ? 9 : 8} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={withActions ? 10 : 9} className="px-6 py-4 text-center text-gray-500">
                   No stock data found.
                 </td>
               </tr>
             ) : (
-              filteredStocks.map((stock) => (
+              paginatedStocks.map((stock) => (
                 <tr key={stock.id} className={`hover:bg-gray-50 ${stock.real_stock < 12 ? 'bg-red-50' : ''}`}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                     {stock.store?.store_name}
-                    <div className="text-xs text-gray-500">{stock.store?.province}</div>
+                    <div className="text-[10px] text-gray-500">{stock.store?.province}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                     {stock.sku_code}
-                    <div className="text-xs text-gray-500">{stock.product?.sku_name}</div>
+                    <div className="text-[10px] text-gray-500 truncate max-w-[220px]">{stock.product?.sku_name}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${stock.stock_type === 'Penjualan' ? 'bg-blue-100 text-blue-800' : stock.stock_type === 'Pengiriman' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                       {stock.stock_type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{stock.recent_stock}</td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${stock.real_stock < 12 ? 'text-red-600' : 'text-gray-900'}`}>{stock.real_stock}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 italic">{stock.reason || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stock.user?.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900 font-medium">{stock.recent_stock}</td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-xs font-bold ${stock.real_stock < 12 ? 'text-red-600' : 'text-gray-900'}`}>{stock.real_stock}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 italic truncate max-w-[240px]" title={stock.reason || '-'}>{stock.reason || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      (stock.status || 'Pending') === 'Approved' ? 'bg-green-100 text-green-800' :
+                      (stock.status || 'Pending') === 'Rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {stock.status || 'Pending'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.user?.name}</td>
                   {withActions && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button onClick={() => handleEditClick(stock)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded">Edit</button>
@@ -798,6 +820,25 @@ function AdminDashboard() {
             )}
           </tbody>
         </table>
+      </div>
+      <div className="flex items-center justify-end p-3 border-t border-gray-200">
+        <button
+          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm mr-2 ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Prev
+        </button>
+        <span className="text-sm text-gray-600 mr-2">
+          Page {currentPage} of {totalPages}
+        </span>
+        <button
+          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+          disabled={currentPage >= totalPages}
+          className={`px-3 py-1 rounded text-sm ${currentPage >= totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          Next
+        </button>
       </div>
       
     </div>
@@ -811,7 +852,7 @@ function AdminDashboard() {
       return;
     }
 
-    const headers = ["Date", "Store", "Province", "SKU Code", "SKU Name", "Type", "Qty", "Real Stock", "Reason", "User"];
+    const headers = ["Date", "Store", "Province", "SKU Code", "SKU Name", "Type", "Qty", "Real Stock", "Reason", "Status", "User"];
 
     const csvRows = [
       headers.join(","),
@@ -827,6 +868,7 @@ function AdminDashboard() {
           escape(stock.recent_stock),
           escape(stock.real_stock),
           escape(stock.reason),
+          escape(stock.status || 'Pending'),
           escape(stock.user?.name),
         ].join(",");
       }),
