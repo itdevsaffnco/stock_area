@@ -1,5 +1,5 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import { useState, useEffect, useMemo, useRef } from 'react';
-import { storeService, productService, stockService, stockTypeService, userService, authService } from '../services';
+﻿﻿import { useState, useEffect, useMemo } from 'react';
+import { storeService, productService, stockService, stockTypeService, userService } from '../services';
 import { useNavigate } from 'react-router-dom';
 import SearchableDropdown from '../components/SearchableDropdown';
 
@@ -22,8 +22,9 @@ function AdminDashboard() {
     const [filterDateStart, setFilterDateStart] = useState('');
     const [filterDateEnd, setFilterDateEnd] = useState('');
     const [filterProvince, setFilterProvince] = useState('');
-    const [filterChannel, setFilterChannel] = useState('');
-    const [filterSubChannel, setFilterSubChannel] = useState('');
+    const [filterChannel] = useState('');
+    const [filterSubChannel] = useState('');
+    
     const [filterStore, setFilterStore] = useState('');
     const [filterSku, setFilterSku] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
@@ -329,86 +330,6 @@ function AdminDashboard() {
   const handleAddAccountSubmit = async (e) => {
     e.preventDefault();
     setAddAccountForm((prev) => ({ ...prev, isLoading: true, message: "" }));
-
-    // --- Derived Data & Filters ---
-
-    // Waterfall logic for Add Stock
-    const uniqueProvincesAdd = useMemo(() => [...new Set(stores.map(s => s.province))].sort(), [stores]);
-    const availableChannelsAdd = useMemo(() => stores.filter(s => s.province === addStockForm.province).map(s => s.channel).filter((v, i, a) => v && a.indexOf(v) === i).sort(), [stores, addStockForm.province]);
-    const availableSubChannelsAdd = useMemo(() => stores.filter(s => s.province === addStockForm.province && s.channel === addStockForm.channel).map(s => s.sub_channel).filter((v, i, a) => v && a.indexOf(v) === i).sort(), [stores, addStockForm.province, addStockForm.channel]);
-    const availableStoresAdd = useMemo(() => stores.filter(s => s.province === addStockForm.province && s.channel === addStockForm.channel && s.sub_channel === addStockForm.subChannel).sort((a, b) => a.store_name.localeCompare(b.store_name)), [stores, addStockForm.province, addStockForm.channel, addStockForm.subChannel]);
-
-    // Store Filter
-    const filteredStores = useMemo(() => stores.filter(store => store.store_name.toLowerCase().includes(storeSearchTerm.toLowerCase())), [stores, storeSearchTerm]);
-
-    // Product Filter
-    const filteredProducts = useMemo(() => products.filter(product => product.sku_name.toLowerCase().includes(productSearchTerm.toLowerCase()) || product.sku_code.toLowerCase().includes(productSearchTerm.toLowerCase())), [products, productSearchTerm]);
-
-    // Dashboard Filters
-    const uniqueProvinces = useMemo(() => [...new Set(stores.map(s => s.province))].filter(Boolean), [stores]);
-    const uniqueChannels = useMemo(() => [...new Set(stores.map(s => s.channel))].filter(Boolean), [stores]);
-    const uniqueSubChannels = useMemo(() => [...new Set(stores.map(s => s.sub_channel))].filter(Boolean), [stores]);
-    const uniqueSkus = useMemo(() => [...new Set(stocks.map(s => s.sku_code))].filter(Boolean), [stocks]);
-    const skuFilterOptions = useMemo(() => {
-        return products.map(p => ({
-            value: p.sku_code,
-            label: `${p.sku_code} - ${p.sku_name}`
-        })).sort((a, b) => a.label.localeCompare(b.label));
-    }, [products]);
-    const uniqueStatuses = useMemo(() => {
-        // Combine statuses from actual data and predefined types
-        const dataStatuses = stocks.map(s => s.stock_type);
-        const definedStatuses = stockTypes.length > 0 
-            ? stockTypes.map(st => st.name) 
-            : ['Penjualan', 'Pengiriman', 'Retur', 'Tester', 'Transfer Barang', 'Adjustment', 'Barang Masuk'];
-            
-        return [...new Set([...dataStatuses, ...definedStatuses])].filter(Boolean).sort();
-    }, [stockTypes, stocks]);
-
-    const filteredStocks = useMemo(() => {
-        return stocks.filter(stock => {
-            const stockDate = new Date(stock.created_at);
-            if (filterDateStart && stockDate < new Date(filterDateStart)) return false;
-            if (filterDateEnd) {
-                const endDate = new Date(filterDateEnd);
-                endDate.setHours(23, 59, 59, 999);
-                if (stockDate > endDate) return false;
-            }
-            if (filterProvince && stock.store?.province !== filterProvince) return false;
-            if (filterChannel && stock.store?.channel !== filterChannel) return false;
-            if (filterSubChannel && stock.store?.sub_channel !== filterSubChannel) return false;
-            if (filterStore && stock.store?.id !== parseInt(filterStore)) return false;
-            if (filterSku && stock.sku_code !== filterSku) return false;
-            if (filterStatus && stock.stock_type !== filterStatus) return false;
-            return true;
-        }).sort((a, b) => {
-            if (sortConfig.key === 'real_stock') {
-                return sortConfig.direction === 'asc' ? a.real_stock - b.real_stock : b.real_stock - a.real_stock;
-            }
-            if (sortConfig.key === 'recent_stock') {
-                return sortConfig.direction === 'asc' ? a.recent_stock - b.recent_stock : b.recent_stock - a.recent_stock;
-            }
-            if (sortConfig.key === 'created_at') {
-                const dateA = new Date(a.created_at);
-                const dateB = new Date(b.created_at);
-                return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
-            }
-            return 0;
-        });
-    }, [stocks, filterDateStart, filterDateEnd, filterProvince, filterChannel, filterSubChannel, filterStore, filterSku, filterStatus, sortConfig]);
-
-    const requestSort = (key) => {
-        let direction = 'desc';
-        if (sortConfig.key === key && sortConfig.direction === 'desc') {
-            direction = 'asc';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const getSortIcon = (key) => {
-        if (sortConfig.key !== key) return 'â†•';
-        return sortConfig.direction === 'asc' ? 'â†‘' : 'â†“';
-    };
     try {
       await userService.create({
         name: addAccountForm.name,
@@ -689,8 +610,7 @@ function AdminDashboard() {
 
   // Dashboard Filters
   const uniqueProvinces = useMemo(() => [...new Set(stores.map((s) => s.province))].filter(Boolean), [stores]);
-  const uniqueChannels = useMemo(() => [...new Set(stores.map((s) => s.channel))].filter(Boolean), [stores]);
-  const uniqueSubChannels = useMemo(() => [...new Set(stores.map((s) => s.sub_channel))].filter(Boolean), [stores]);
+ 
   const uniqueSkus = useMemo(() => [...new Set(stocks.map((s) => s.sku_code))].filter(Boolean), [stocks]);
   const uniqueStatuses = useMemo(() => {
     const statuses = stockTypes.length > 0 ? stockTypes.map((st) => st.name) : ["Penjualan", "Pengiriman", "Retur", "Tester", "Transfer Barang", "Request Stock"];
@@ -823,12 +743,18 @@ function AdminDashboard() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('created_at')}>
+                Date {getSortIcon('created_at')}
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Real Stock</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('recent_stock')}>
+                Qty {getSortIcon('recent_stock')}
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('real_stock')}>
+                Real Stock {getSortIcon('real_stock')}
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
               {withActions && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
             </tr>
@@ -836,136 +762,46 @@ function AdminDashboard() {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredStocks.length === 0 ? (
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort("created_at")}>
-                  Date {getSortIcon("created_at")}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort("recent_stock")}>
-                  Qty {getSortIcon("recent_stock")}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort("real_stock")}>
-                  Real Stock {getSortIcon("real_stock")}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                {withActions && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
+                <td colSpan={withActions ? 9 : 8} className="px-6 py-4 text-center text-gray-500">
+                  No stock data found.
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {currentItems.length === 0 ? (
-                <tr>
-                  <td colSpan={withActions ? 9 : 8} className="px-6 py-4 text-center text-gray-500">
-                    No stock data found.
+            ) : (
+              filteredStocks.map((stock) => (
+                <tr key={stock.id} className={`hover:bg-gray-50 ${stock.real_stock < 12 ? 'bg-red-50' : ''}`}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {stock.store?.store_name}
+                    <div className="text-xs text-gray-500">{stock.store?.province}</div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {stock.sku_code}
+                    <div className="text-xs text-gray-500">{stock.product?.sku_name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${stock.stock_type === 'Penjualan' ? 'bg-blue-100 text-blue-800' : stock.stock_type === 'Pengiriman' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {stock.stock_type}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{stock.recent_stock}</td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${stock.real_stock < 12 ? 'text-red-600' : 'text-gray-900'}`}>{stock.real_stock}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 italic">{stock.reason || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stock.user?.name}</td>
+                  {withActions && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button onClick={() => handleEditClick(stock)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded">Edit</button>
+                      <button onClick={() => handleDeleteClick(stock.id)} className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1 rounded">Delete</button>
+                    </td>
+                  )}
                 </tr>
-              ) : (
-                currentItems.map((stock) => (
-                  <tr key={stock.id} className={`hover:bg-gray-50 ${stock.real_stock < 12 ? "bg-red-50" : ""}`}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stock.store?.store_name}
-                      <div className="text-xs text-gray-500">{stock.store?.province}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {stock.sku_code}
-                      <div className="text-xs text-gray-500">{stock.product?.sku_name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${stock.stock_type === "Penjualan" ? "bg-blue-100 text-blue-800" : stock.stock_type === "Pengiriman" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
-                      >
-                        {stock.stock_type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{stock.recent_stock}</td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${stock.real_stock < 12 ? "text-red-600" : "text-gray-900"}`}>{stock.real_stock}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 italic">{stock.reason || "-"}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stock.user?.name}</td>
-                    {withActions && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button onClick={() => handleEditClick(stock)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded">
-                          Edit
-                        </button>
-                        <button onClick={() => handleDeleteClick(stock.id)} className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1 rounded">
-                          Delete
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to <span className="font-medium">{Math.min(indexOfLastItem, filteredStocks.length)}</span> of <span className="font-medium">{filteredStocks.length}</span>{" "}
-                  results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => paginate(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${currentPage === 1 ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-50"}`}
-                  >
-                    <span className="sr-only">Previous</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-
-                  {/* Simple Page Numbers: Show current, prev, next, first, last or just simple logic for now */}
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => {
-                    // Show first, last, current, and surrounding 1
-                    if (number === 1 || number === totalPages || (number >= currentPage - 1 && number <= currentPage + 1)) {
-                      return (
-                        <button
-                          key={number}
-                          onClick={() => paginate(number)}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            currentPage === number ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600" : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                          }`}
-                        >
-                          {number}
-                        </button>
-                      );
-                    } else if ((number === currentPage - 2 && number > 1) || (number === currentPage + 2 && number < totalPages)) {
-                      return (
-                        <span key={number} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  })}
-
-                  <button
-                    onClick={() => paginate(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${currentPage === totalPages ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-50"}`}
-                  >
-                    <span className="sr-only">Next</span>
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-    );
-  };
+      
+    </div>
+  );
 
   const handleDownloadData = () => {
     const dataToDownload = filteredStocks;
@@ -1008,46 +844,6 @@ function AdminDashboard() {
     document.body.removeChild(a);
   };
 
-    const handleDownloadData = () => {
-        const dataToDownload = filteredStocks;
-        
-        if (dataToDownload.length === 0) {
-            alert("No data to download");
-            return;
-        }
-
-        const headers = ["Date", "Store", "Province", "SKU Code", "SKU Name", "Type", "Qty", "Real Stock", "Reason", "User"];
-        
-        const csvRows = [
-            headers.join(','),
-            ...dataToDownload.map(stock => {
-                const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
-                return [
-                    escape(new Date(stock.created_at).toLocaleString()),
-                    escape(stock.store?.store_name),
-                    escape(stock.store?.province),
-                    escape(stock.sku_code),
-                    escape(stock.product?.sku_name),
-                    escape(stock.stock_type),
-                    escape(stock.recent_stock),
-                    escape(stock.real_stock),
-                    escape(stock.reason),
-                    escape(stock.user?.name)
-                ].join(',');
-            })
-        ];
-
-        const csvString = csvRows.join('\n');
-        const blob = new Blob([csvString], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.setAttribute('hidden', '');
-        a.setAttribute('href', url);
-        a.setAttribute('download', `stock_data_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    };
 
     const renderContent = () => {
         switch (activeTab) {
@@ -1181,57 +977,6 @@ function AdminDashboard() {
                              <h3 className="font-bold text-gray-700">Manage Stock Entries</h3>
                         </div>
                         {renderStockTable(true)}
-                    </div>
-                );
-            case 'request-stock':
-                return (
-                    <div>
-                        <div className="mb-4 flex justify-between items-center">
-                             <h3 className="font-bold text-gray-700">Requested Stocks</h3>
-                             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">
-                               {stocks.filter(s => s.stock_type === 'Request Stock').length} Requests
-                             </span>
-                        </div>
-                        <div className="bg-white rounded-lg shadow overflow-hidden">
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested Qty</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                {stocks.filter(s => s.stock_type === 'Request Stock').length === 0 ? (
-                                  <tr>
-                                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500 text-sm">No requests found.</td>
-                                  </tr>
-                                ) : (
-                                  stocks
-                                    .filter(s => s.stock_type === 'Request Stock')
-                                    .map((stock) => (
-                                      <tr key={stock.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                          {stock.store?.store_name}
-                                          <div className="text-xs text-gray-500">{stock.store?.province}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                          {stock.sku_code}
-                                          <div className="text-xs text-gray-500">{stock.product?.sku_name}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">{stock.recent_stock}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stock.user?.name}</td>
-                                      </tr>
-                                    ))
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
                     </div>
                 );
             case 'add-stock':

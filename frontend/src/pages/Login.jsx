@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Toast from '../components/Toast';
 import { authService } from '../services';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,13 +8,12 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
+    setToast(null);
 
     try {
         const response = await authService.login(email, password);
@@ -22,14 +22,6 @@ function Login() {
         localStorage.setItem('token', access_token);
         localStorage.setItem('user', JSON.stringify(user));
 
-        // Redirect based on role
-        if (user.role === 'admin') {
-            navigate('/admin');
-        } else {
-            navigate('/staff');
-        }
-
-      // Redirect based on role
       if (user.role === "admin") {
         navigate("/admin");
       } else {
@@ -39,7 +31,6 @@ function Login() {
       console.error("Login error:", err);
       console.error("Error response:", err.response);
       const errorMessage = err.response?.data?.message || "Login failed. Please check your email and password.";
-      setError(errorMessage);
       setToast({
         message: errorMessage,
         type: "error",
