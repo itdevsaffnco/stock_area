@@ -751,7 +751,7 @@ function AdminDashboard() {
   const renderStockTable = (withActions = false) => (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200 table-fixed">
           <thead className="bg-gray-100">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-200" onClick={() => requestSort('created_at')}>
@@ -782,24 +782,24 @@ function AdminDashboard() {
             ) : (
               paginatedStocks.map((stock) => (
                 <tr key={stock.id} className={`hover:bg-gray-50 ${stock.real_stock < 12 ? 'bg-red-50' : ''}`}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{new Date(stock.created_at).toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                     {stock.store?.store_name}
-                    <div className="text-xs text-gray-500">{stock.store?.province}</div>
+                    <div className="text-[10px] text-gray-500">{stock.store?.province}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900">
                     {stock.sku_code}
-                    <div className="text-xs text-gray-500">{stock.product?.sku_name}</div>
+                    <div className="text-[10px] text-gray-500 truncate max-w-[220px]">{stock.product?.sku_name}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${stock.stock_type === 'Penjualan' ? 'bg-blue-100 text-blue-800' : stock.stock_type === 'Pengiriman' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                       {stock.stock_type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{stock.recent_stock}</td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${stock.real_stock < 12 ? 'text-red-600' : 'text-gray-900'}`}>{stock.real_stock}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 italic">{stock.reason || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-900 font-medium">{stock.recent_stock}</td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-xs font-bold ${stock.real_stock < 12 ? 'text-red-600' : 'text-gray-900'}`}>{stock.real_stock}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 italic truncate max-w-[240px]" title={stock.reason || '-'}>{stock.reason || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       (stock.status || 'Pending') === 'Approved' ? 'bg-green-100 text-green-800' :
                       (stock.status || 'Pending') === 'Rejected' ? 'bg-red-100 text-red-800' :
@@ -808,7 +808,7 @@ function AdminDashboard() {
                       {stock.status || 'Pending'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{stock.user?.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{stock.user?.name}</td>
                   {withActions && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button onClick={() => handleEditClick(stock)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded">Edit</button>
