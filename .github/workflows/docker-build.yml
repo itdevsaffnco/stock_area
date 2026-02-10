@@ -1,0 +1,153 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: ["main", "master"]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: itsaffnco/saffnco_stock_sales_backend:latest
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: itsaffnco/saffnco_stock_sales_frontend:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          port: ${{ secrets.SERVER_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: BACKEND_ENV,FRONTEND_ENV
+          script: |
+            set -e
+            export PATH=$PATH:/usr/local/bin
+
+            # Diagnostics
+            echo "Current user: $(whoami)"
+            echo "User groups: $(groups)"
+            echo "Docker socket permissions:"
+            ls -la /var/run/docker.sock 2>/dev/null || echo "Docker socket not found"
+
+            # Try to fix docker group membership if needed
+            if ! groups | grep -q docker; then
+              USERNAME=$(whoami)
+              echo ""
+              echo "WARNING: User '$USERNAME' is NOT in docker group"
+              echo "Attempting to add user to docker group..."
+              
+              # Check if user is sudoer and can use sudo without password
+              if sudo -n true 2>/dev/null; then
+                echo "Adding '$USERNAME' to docker group..."
+                sudo usermod -aG docker "$USERNAME"
+                echo "User added to docker group. Restarting session..."
+                # Use a new shell with the docker group
+                exec newgrp docker
+              else
+                echo ""
+                echo "ERROR: Cannot auto-fix - sudo password required"
+                echo "Please run this command on your server:"
+                echo "  sudo usermod -aG docker $USERNAME"
+                echo "Then log out and log back in, or run:"
+                echo "  newgrp docker"
+                exit 1
+              fi
+            fi
+
+            echo "Docker access verified!"
+            echo "Ensure docker networks exist..."
+            docker network inspect stock-area-backend-net >/dev/null 2>&1 || \
+              docker network create stock-area-backend-net
+
+            docker network inspect stock-area-frontend-net >/dev/null 2>&1 || \
+              docker network create stock-area-frontend-net
+
+            echo "Deploying Backend..."
+            docker pull itsaffnco/saffnco_stock_sales_backend:latest
+
+            docker stop saffnco_stock_sales_backend || true
+            docker rm saffnco_stock_sales_backend || true
+
+            # Ensure data directories exist - create them if they don't exist
+            echo "Setting up data directories..."
+            if [ ! -d "/DATA/AppData/stock_area/mysql" ] || [ ! -d "/DATA/AppData/stock_area/logs" ]; then
+              echo "Creating missing directories..."
+              mkdir -p /DATA/AppData/stock_area/mysql 2>/dev/null || \
+              mkdir -p /DATA/AppData/stock_area/logs 2>/dev/null || \
+              echo "Note: /DATA directories may need sudo access - Docker volumes will create missing dirs"
+            fi
+
+            # Ensure proper permissions if possible
+            chmod -R 777 /DATA/AppData/stock_area 2>/dev/null || true
+
+            echo "$BACKEND_ENV" > backend.tmp.env
+
+            docker run -d \
+              --name saffnco_stock_sales_backend \
+              --restart always \
+              --network stock-area-backend-net \
+              -p 5050:80 \
+              --cpu-shares 1024 \
+              --memory 4G \
+              --env-file backend.tmp.env \
+              -v /DATA/AppData/stock_area/logs:/var/www/html/storage/logs \
+              -v /DATA/AppData/stock_area/mysql:/var/lib/mysql \
+              itsaffnco/saffnco_stock_sales_backend:latest
+
+            # Wait for container to be ready and setup storage
+            sleep 5
+            docker exec saffnco_stock_sales_backend php artisan storage:link 2>/dev/null || true
+
+            echo "Backend storage linked successfully"
+
+            # connect backend to frontend network
+            if ! docker network inspect stock-area-frontend-net \
+                | grep -q '"Name": "saffnco_stock_sales_backend"'; then
+              docker network connect stock-area-frontend-net saffnco_stock_sales_backend
+            fi
+
+            rm backend.tmp.env
+
+            echo "Deploying Frontend..."
+            docker pull itsaffnco/saffnco_stock_sales_frontend:latest
+            docker stop saffnco_stock_sales_frontend || true
+            docker rm saffnco_stock_sales_frontend || true
+
+            docker run -d \
+              --name saffnco_stock_sales_frontend \
+              --restart always \
+              --network stock-area-frontend-net \
+              -p 7000:80 \
+              --cpu-shares 1024 \
+              --memory 2G \
+              itsaffnco/saffnco_stock_sales_frontend:latest
+
+            docker image prune -f
+            echo "Deployment completed."

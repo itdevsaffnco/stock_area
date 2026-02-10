@@ -3,10 +3,10 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\Api\StoreController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\StockController;
-use App\Http\Controllers\Api\StockTypeController;
+use App\Http\Controllers\API\StoreController;
+use App\Http\Controllers\API\ProductController;
+use App\Http\Controllers\API\StockController;
+use App\Http\Controllers\API\StockTypeController;
 
 Route::post('/login', [AuthController::class, 'login']);
 
