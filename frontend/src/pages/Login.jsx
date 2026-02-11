@@ -30,7 +30,14 @@ function Login() {
     } catch (err) {
       console.error("Login error:", err);
       console.error("Error response:", err.response);
-      const errorMessage = err.response?.data?.message || "Login failed. Please check your email and password.";
+    const status = err.response?.status;
+    const errorMessage =
+      status === 401
+        ? "Email atau password salah."
+        : err.response?.data?.message || "Login gagal. Silakan cek email dan password.";
+    if (status === 401) {
+      alert(errorMessage);
+    }
       setToast({
         message: errorMessage,
         type: "error",

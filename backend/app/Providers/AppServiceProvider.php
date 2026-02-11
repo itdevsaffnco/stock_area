@@ -13,11 +13,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        // Jika ingin setting khusus saat local bisa ditaruh di sini
-        if (config('app.env') === 'local') {
-            // Contoh: paksa HTTPS di local (opsional)
-            $this->app['request']->server->set('HTTPS', true);
-        }
+        // Tempat untuk register service khusus bila diperlukan
     }
 
     /**

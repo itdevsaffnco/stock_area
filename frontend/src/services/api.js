@@ -3,6 +3,9 @@ import axios from "axios";
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "https://stockarea-backend.saffnco.app/api",
   timeout: 10000,
+  headers: {
+    Accept: "application/json",
+  },
 });
 
 api.interceptors.request.use(
