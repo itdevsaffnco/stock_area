@@ -75,7 +75,8 @@ function AdminDashboard() {
         role: "staff",
         storeId: "",
         message: "",
-        isLoading: false
+        isLoading: false,
+        duplicate: false
     });
 
     const [stockTypes, setStockTypes] = useState([]);
@@ -295,6 +296,9 @@ function AdminDashboard() {
 
   const handleAddStockSubmit = async (e) => {
     e.preventDefault();
+    if (!window.confirm("Yakin ingin menambahkan data stock?")) {
+      return;
+    }
     if (!addStockForm.skuCode) {
       setAddStockForm((prev) => ({ ...prev, message: "Error: Please select a valid product." }));
       return;
@@ -320,6 +324,7 @@ function AdminDashboard() {
       // Refresh current stock
       const res = await stockService.getCurrent(addStockForm.storeId, addStockForm.skuCode);
       setAddStockForm((prev) => ({ ...prev, currentStock: res.data.current_stock }));
+      alert("Stock berhasil ditambahkan");
     } catch (error) {
       setAddStockForm((prev) => ({
         ...prev,
@@ -331,15 +336,22 @@ function AdminDashboard() {
 
   const handleAddAccountSubmit = async (e) => {
     e.preventDefault();
-    setAddAccountForm((prev) => ({ ...prev, isLoading: true, message: "" }));
+    if (!window.confirm("Yakin ingin menambahkan akun baru?")) {
+      return;
+    }
+    setAddAccountForm((prev) => ({ ...prev, isLoading: true, message: "", duplicate: false }));
     try {
-      await userService.create({
+      const res = await userService.create({
         name: addAccountForm.name,
         email: addAccountForm.email,
         password: addAccountForm.password,
         role: addAccountForm.role,
         store_id: null,
       });
+      const newUser = res.data.user || res.data.data || res.data;
+      if (newUser && newUser.email) {
+        setUsers((prev) => [...prev, newUser]);
+      }
 
       setAddAccountForm({
         name: "",
@@ -349,18 +361,29 @@ function AdminDashboard() {
         storeId: "",
         message: "User account created successfully!",
         isLoading: false,
+        duplicate: false
       });
+      alert("Akun berhasil ditambahkan");
     } catch (error) {
+      const isDuplicate =
+        error.response?.status === 422 &&
+        (error.response?.data?.errors?.email?.some((m) => m.toLowerCase().includes("already")) ||
+         String(error.response?.data?.message || "").toLowerCase().includes("unique") ||
+         String(error.message || "").toLowerCase().includes("duplicate"));
       setAddAccountForm((prev) => ({
         ...prev,
-        message: "Error creating account: " + (error.response?.data?.message || error.message),
+        message: isDuplicate ? "Akun dengan email ini sudah terdaftar." : "Error creating account: " + (error.response?.data?.message || error.message),
         isLoading: false,
+        duplicate: !!isDuplicate,
       }));
     }
   };
 
   const handleAddStoreSubmit = async (e) => {
     e.preventDefault();
+    if (!window.confirm("Yakin ingin menambahkan store?")) {
+      return;
+    }
     setAddStoreForm((prev) => ({ ...prev, isLoading: true, message: "" }));
 
     try {
@@ -380,6 +403,7 @@ function AdminDashboard() {
         message: "Store created successfully!",
         isLoading: false,
       });
+      alert("Store berhasil ditambahkan");
     } catch (error) {
       setAddStoreForm((prev) => ({
         ...prev,
@@ -395,6 +419,7 @@ function AdminDashboard() {
     try {
       await storeService.delete(id);
       setStores((prev) => prev.filter((s) => s.id !== id));
+      alert("Store berhasil dihapus");
     } catch (error) {
       alert("Error deleting store: " + (error.response?.data?.message || error.message));
     }
@@ -438,6 +463,9 @@ function AdminDashboard() {
   // Stock Type Handlers
   const handleAddStockTypeSubmit = async (e) => {
     e.preventDefault();
+    if (!window.confirm("Yakin ingin menambahkan status stock?")) {
+      return;
+    }
     setAddStockTypeForm((prev) => ({ ...prev, isLoading: true, message: "" }));
     try {
       const res = await stockTypeService.create({
@@ -445,6 +473,7 @@ function AdminDashboard() {
       });
       setStockTypes((prev) => [...prev, res.data.data]);
       setAddStockTypeForm({ name: "", message: "Stock type created successfully!", isLoading: false });
+      alert("Status stock berhasil ditambahkan");
     } catch (error) {
       setAddStockTypeForm((prev) => ({
         ...prev,
@@ -459,6 +488,7 @@ function AdminDashboard() {
     try {
       await stockTypeService.delete(id);
       setStockTypes((prev) => prev.filter((st) => st.id !== id));
+      alert("Status stock berhasil dihapus");
     } catch (error) {
       alert("Error deleting stock type: " + (error.response?.data?.message || error.message));
     }
@@ -492,6 +522,9 @@ function AdminDashboard() {
   // Product Handlers
   const handleAddProductSubmit = async (e) => {
     e.preventDefault();
+    if (!window.confirm("Yakin ingin menambahkan produk?")) {
+      return;
+    }
     setAddProductForm((prev) => ({ ...prev, isLoading: true, message: "" }));
     try {
       const res = await productService.create({
@@ -515,6 +548,7 @@ function AdminDashboard() {
         message: "Product created successfully!",
         isLoading: false,
       });
+      alert("Produk berhasil ditambahkan");
     } catch (error) {
       setAddProductForm((prev) => ({
         ...prev,
@@ -529,6 +563,7 @@ function AdminDashboard() {
     try {
       await productService.delete(id);
       setProducts((prev) => prev.filter((p) => p.id !== id));
+      alert("Produk berhasil dihapus");
     } catch (error) {
       alert("Error deleting product: " + (error.response?.data?.message || error.message));
     }
@@ -1091,6 +1126,15 @@ function AdminDashboard() {
                                 <div className={`p-4 mb-6 rounded-lg text-sm font-medium ${addAccountForm.message.includes('success') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                                     {addAccountForm.message}
                                 </div>
+                            )}
+                            {addAccountForm.duplicate && (
+                                <button
+                                    type="button"
+                                    onClick={() => alert('Akun sudah ada. Gunakan email lain atau perbarui akun yang ada.')}
+                                    className="mb-4 w-full bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg border border-yellow-300 font-semibold hover:bg-yellow-200 transition-colors"
+                                >
+                                    Akun sudah ada
+                                </button>
                             )}
                             <form onSubmit={handleAddAccountSubmit} className="space-y-5">
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label><input type="text" className="w-full border border-gray-300 p-2.5 rounded-lg focus:ring-2 focus:ring-[#1B4D3E]/20 focus:border-[#1B4D3E] transition-colors" value={addAccountForm.name} onChange={e => setAddAccountForm({...addAccountForm, name: e.target.value})} required placeholder="e.g. John Doe" /></div>

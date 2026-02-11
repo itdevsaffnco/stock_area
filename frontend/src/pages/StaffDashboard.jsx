@@ -75,6 +75,9 @@ function StaffDashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!window.confirm('Yakin ingin submit data stock?')) {
+      return;
+    }
     if (!skuCode) {
       setMessage('Error: Please select a valid product from the list.');
       return;
@@ -100,6 +103,7 @@ function StaffDashboard() {
       setDestStoreId('');
       const res = await stockService.getCurrent(storeId, skuCode);
       setCurrentStock(res.data.current_stock);
+      alert('Data stock berhasil disubmit');
     } catch (error) {
       setMessage('Error updating stock: ' + (error.response?.data?.message || error.message));
     } finally {
